@@ -4,10 +4,6 @@ Generates a lab shift rota as a formatted Excel workbook: a colour-coded
 calendar grid (staff as rows, dates as columns) with bench/section allocation
 rows underneath, plus a summary sheet of shifts worked per person.
 
-Modelled on the layout of the existing GEH BMS rotas — short shift codes in the
-grid, a KEY block, staff grouped into Main / Extras, and `BT / Coagulation /
-Haematology / Morphology` allocation rows below the calendar.
-
 ## Install
 
 Python 3.9+ and one dependency:
