@@ -16,7 +16,22 @@ Python 3.9+ and one dependency:
 pip install openpyxl
 ```
 
-## Use
+## Use — double-click
+
+Double-click **`Generate Rota.bat`**. That is the whole workflow.
+
+- **First run** creates `roster_input.xlsx` and opens it. Replace the example
+  staff with your real staff, set the date range on the Settings sheet, add any
+  leave, then save and close it.
+- **Every run after that** reads that workbook, writes a rota named
+  `rota_<date>_<time>.xlsx` and opens it. The timestamp means a new file every
+  run, so you never overwrite a rota you have already shared.
+
+The launcher finds Python itself, installs `openpyxl` if it is missing, and
+keeps the window open so you can read any message. To start over from a clean
+template, delete or rename `roster_input.xlsx` and run it again.
+
+## Use — command line
 
 Two steps. First write yourself an input workbook:
 

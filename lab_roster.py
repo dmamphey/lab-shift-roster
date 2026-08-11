@@ -1551,13 +1551,22 @@ def section(sheet, row: int, label: str, width: int) -> None:
 # command line
 # --------------------------------------------------------------------------
 
+def locked_message(path: Path) -> str:
+    return (f"Could not write {path}: the file is open in another program, "
+            f"most likely Excel.\nClose it and run this again.")
+
+
 def cmd_template(args) -> int:
     path = Path(args.out)
     if path.exists() and not args.force:
         print(f"{path} already exists. Re-run with --force to overwrite it.")
         return 1
     path.parent.mkdir(parents=True, exist_ok=True)
-    build_template(path)
+    try:
+        build_template(path)
+    except PermissionError:
+        print(locked_message(path))
+        return 1
     print(f"Input template written to {path}")
     print("Fill in Staff / Shifts / Leave / Settings, then run:")
     print(f"  python {Path(__file__).name} generate --input {path} --out rota.xlsx")
@@ -1594,7 +1603,11 @@ def cmd_generate(args) -> int:
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    write_rota(scheduler, out_path)
+    try:
+        write_rota(scheduler, out_path)
+    except PermissionError:
+        print(locked_message(out_path))
+        return 1
 
     rows = scheduler.summary_rows()
     totals = [row["total"] for row in rows if row["total"]]
