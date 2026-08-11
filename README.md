@@ -16,6 +16,36 @@ Python 3.9+ and one dependency:
 pip install openpyxl
 ```
 
+## Use — in a browser, nothing installed
+
+`index.html` runs the whole tool client-side. It loads Pyodide (CPython compiled
+to WebAssembly), installs `openpyxl`, then imports `lab_roster.py` and calls the
+same `Scheduler` and `write_rota` as the command line does — no reimplementation,
+no second copy of the rules.
+
+**Your data never leaves the machine.** There is no server and no upload: the
+workbook you choose is read by JavaScript, handed to Python inside the browser
+tab, and the generated rota comes back as a download. You can go offline once
+the page has loaded. That matters here, because a filled-in input workbook
+contains named staff and sick leave dates — health data about identifiable
+people — and this design keeps it off other people's infrastructure entirely.
+
+It has to be served over HTTP, not opened as a `file://` path, because it fetches
+`lab_roster.py` alongside it. Locally:
+
+```bash
+python -m http.server 8765
+```
+
+Then open <http://localhost:8765>. To share it, put `index.html` and
+`lab_roster.py` on any static host — GitHub Pages, an intranet site, a
+SharePoint library. Note that GitHub Pages for a **private** repo needs a paid
+plan; on the free tier the repository must be public.
+
+First load pulls roughly 10–25 MB of Python runtime and is cached afterwards.
+The "Try it with example data" button builds a fictional workbook and schedules
+against it, so anyone can see what the tool does without filling anything in.
+
 ## Use — double-click
 
 Double-click **`Generate Rota.bat`**. That is the whole workflow.

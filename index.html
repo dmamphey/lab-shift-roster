@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab Shift Roster</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1b1f24;
+    --muted: #5b6470;
+    --line: #d8dde4;
+    --accent: #1f3864;
+    --accent-soft: #e8edf6;
+    --ok: #1d6b3f;
+    --ok-bg: #e3f4e9;
+    --warn: #8a5300;
+    --warn-bg: #fdf1dc;
+    --bad: #9c1f2b;
+    --bad-bg: #fbe6e8;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --panel: #1c2027;
+      --ink: #e8ebef;
+      --muted: #9aa4b0;
+      --line: #2f353e;
+      --accent: #7fa5e3;
+      --accent-soft: #232c3a;
+      --ok: #7fd3a0;
+      --ok-bg: #1b2c22;
+      --warn: #e0b667;
+      --warn-bg: #2d2618;
+      --bad: #f0919c;
+      --bad-bg: #2e1d20;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.25rem 4rem;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.55rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+  h2 { font-size: 1rem; margin: 0 0 .75rem; text-transform: uppercase;
+       letter-spacing: .06em; color: var(--muted); }
+  p { margin: 0 0 .9rem; }
+  .lede { color: var(--muted); margin-bottom: 1.75rem; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem;
+  }
+  .privacy {
+    border-left: 3px solid var(--ok); background: var(--ok-bg);
+    color: var(--ok); padding: .8rem 1rem; border-radius: 6px;
+    margin-bottom: 1.75rem; font-size: .92rem;
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: var(--panel);
+    border: 0; border-radius: 7px; padding: .6rem 1.1rem;
+  }
+  button.secondary { background: var(--accent-soft); color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:not(:disabled):hover { filter: brightness(1.08); }
+  .row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: flex-end; }
+  label { display: block; font-size: .82rem; color: var(--muted);
+          margin-bottom: .25rem; font-weight: 600; }
+  input[type=date], input[type=number] {
+    font: inherit; padding: .45rem .55rem; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  input[type=file] { font: inherit; color: var(--muted); max-width: 100%; }
+  #log {
+    font-family: var(--mono); font-size: .82rem; white-space: pre-wrap;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 7px;
+    padding: .8rem; max-height: 190px; overflow-y: auto; color: var(--muted);
+  }
+  .stats { display: flex; flex-wrap: wrap; gap: .6rem; margin: 0 0 1rem; }
+  .stat {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 7px;
+    padding: .5rem .8rem; min-width: 88px;
+  }
+  .stat b { display: block; font-size: 1.3rem; line-height: 1.15; }
+  .stat span { font-size: .75rem; color: var(--muted); }
+  .check { padding: .45rem .7rem; border-radius: 6px; margin-bottom: .35rem;
+           font-size: .88rem; display: flex; justify-content: space-between; gap: 1rem; }
+  .check.pass { background: var(--ok-bg); color: var(--ok); }
+  .check.fail { background: var(--bad-bg); color: var(--bad); }
+  .hidden { display: none; }
+  .err { background: var(--bad-bg); color: var(--bad); border-radius: 7px;
+         padding: .8rem 1rem; font-size: .9rem; white-space: pre-wrap;
+         font-family: var(--mono); }
+  details { margin-top: .6rem; font-size: .87rem; color: var(--muted); }
+  summary { cursor: pointer; font-weight: 600; }
+  ol { padding-left: 1.3rem; }
+  footer { color: var(--muted); font-size: .82rem; margin-top: 2rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lab Shift Roster</h1>
+  <p class="lede">Builds a colour-coded shift rota as an Excel workbook, with a
+     per-person summary and a rule check.</p>
+
+  <div class="privacy">
+    <strong>Your data stays on this device.</strong> Python runs inside your
+    browser, so the workbook you choose is never uploaded and no rota is sent
+    anywhere. You can disconnect from the network once the page has loaded.
+  </div>
+
+  <div class="panel">
+    <h2>Step 1 &middot; Input workbook</h2>
+    <p>Download the template, replace the example staff with your own, set the
+       date range on the Settings sheet, then add any leave.</p>
+    <button id="tpl" class="secondary" disabled>Download blank template</button>
+  </div>
+
+  <div class="panel">
+    <h2>Step 2 &middot; Build the rota</h2>
+    <div class="row" style="margin-bottom:1rem">
+      <div style="flex:1 1 260px">
+        <label for="file">Your filled-in workbook</label>
+        <input type="file" id="file" accept=".xlsx" disabled>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:1rem">
+      <div><label for="start">Start date (optional)</label>
+           <input type="date" id="start"></div>
+      <div><label for="end">End date (optional)</label>
+           <input type="date" id="end"></div>
+      <div><label for="seed">Seed</label>
+           <input type="number" id="seed" value="42" style="width:90px"></div>
+    </div>
+    <p style="font-size:.85rem;color:var(--muted)">Leave the dates blank to use
+       the range on the Settings sheet. The same seed always produces the same
+       rota; change it to reshuffle one you don't like.</p>
+    <div class="row">
+      <button id="go" disabled>Generate rota</button>
+      <button id="demo" class="secondary" disabled>Try it with example data</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="results">
+    <h2>Result</h2>
+    <div class="stats" id="stats"></div>
+    <div id="checks"></div>
+    <div class="row" style="margin-top:1rem">
+      <button id="dl">Download workbook</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="errbox">
+    <h2>Problem</h2>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Status</h2>
+    <div id="log">Starting…</div>
+    <details>
+      <summary>What is loading?</summary>
+      <p>The page downloads a Python runtime compiled to WebAssembly
+         (Pyodide, roughly 10–25&nbsp;MB) plus the openpyxl spreadsheet library,
+         then the roster script itself. It is cached afterwards, so later visits
+         are quick. Nothing you enter is transmitted.</p>
+    </details>
+  </div>
+
+  <footer>
+    Rules enforced: no shift while on leave &middot; one shift per day &middot;
+    no shift the day after a night &middot; a cap on consecutive days &middot;
+    nights in blocks with rest days after. Shifts and weekends are spread as
+    evenly as possible, with a senior on every shift that needs one.
+    If cover cannot be found without breaking a rule, the shift is left short
+    and reported rather than the rule being broken.
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const logBox = $('log');
+let pyodide = null, output = null, outputName = 'rota.xlsx';
+
+function log(msg) {
+  logBox.textContent += (logBox.textContent ? '\n' : '') + msg;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+function setLog(msg) { logBox.textContent = msg; }
+
+function showError(text) {
+  $('err').textContent = text;
+  $('errbox').classList.remove('hidden');
+}
+function clearError() { $('errbox').classList.add('hidden'); }
+
+function stamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+       + `_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function saveBytes(bytes, filename) {
+  const blob = new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+const PY_GLUE = `
+import io, json
+from pathlib import Path
+import lab_roster
+
+def build_from(path, start=None, end=None, seed=None):
+    """Run the scheduler over an input workbook already in the virtual FS."""
+    config = lab_roster.load_config(Path(path))
+    if start:
+        config.settings.start = lab_roster.to_date(start, "start date")
+    if end:
+        config.settings.end = lab_roster.to_date(end, "end date")
+    if seed is not None:
+        config.settings.seed = int(seed)
+    if config.settings.end < config.settings.start:
+        raise ValueError("End date is before start date.")
+
+    scheduler = lab_roster.Scheduler(config)
+    scheduler.build()
+
+    buffer = io.BytesIO()
+    lab_roster.write_rota(scheduler, buffer)
+
+    rows = scheduler.summary_rows()
+    totals = [r["total"] for r in rows if r["total"]]
+    counts = {}
+    for violation in scheduler.violations:
+        counts[violation["rule"]] = counts.get(violation["rule"], 0) + 1
+
+    stats = {
+        "days": len(scheduler.dates),
+        "staff": len(config.staff),
+        "shifts": sum(r["total"] for r in rows),
+        "lowest": min(totals) if totals else 0,
+        "highest": max(totals) if totals else 0,
+        "spread": (max(totals) - min(totals)) if totals else 0,
+        "start": config.settings.start.strftime("%d %b %Y"),
+        "end": config.settings.end.strftime("%d %b %Y"),
+        "rules": ["Leave respected", "No shift after a night",
+                  "Max consecutive days", "Senior on every shift",
+                  "Shift fully staffed", "Bench covered"],
+        "issues": counts,
+    }
+    return buffer.getvalue(), json.dumps(stats)
+
+def make_template():
+    lab_roster.build_template(Path("/template.xlsx"))
+    return Path("/template.xlsx").read_bytes()
+`;
+
+async function boot() {
+  try {
+    setLog('Loading the Python runtime — first visit only, please wait…');
+    pyodide = await loadPyodide();
+
+    log('Installing openpyxl…');
+    await pyodide.loadPackage('micropip');
+    const micropip = pyodide.pyimport('micropip');
+    await micropip.install('openpyxl');
+
+    log('Loading the roster script…');
+    const response = await fetch('lab_roster.py');
+    if (!response.ok) throw new Error(
+      `Could not fetch lab_roster.py (HTTP ${response.status}). `
+      + 'This page must be served from the same folder as the script.');
+    pyodide.FS.writeFile('/lab_roster.py', await response.text());
+
+    await pyodide.runPythonAsync(
+      "import sys\nsys.path.insert(0, '/')\n" + PY_GLUE);
+
+    log('Ready.');
+    for (const id of ['tpl', 'file', 'go', 'demo']) $(id).disabled = false;
+  } catch (error) {
+    log('Failed to start.');
+    showError(String(error && error.message ? error.message : error));
+  }
+}
+
+function renderResult(statsJson) {
+  const stats = JSON.parse(statsJson);
+  $('stats').innerHTML = [
+    ['Days', stats.days], ['Staff', stats.staff], ['Shifts', stats.shifts],
+    ['Lowest', stats.lowest], ['Highest', stats.highest],
+    ['Spread', stats.spread],
+  ].map(([label, value]) =>
+    `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join('');
+
+  $('checks').innerHTML = stats.rules.map(rule => {
+    const count = stats.issues[rule] || 0;
+    return `<div class="check ${count ? 'fail' : 'pass'}">`
+         + `<span>${rule}</span><span>`
+         + (count ? `${count} issue${count > 1 ? 's' : ''}` : 'pass')
+         + `</span></div>`;
+  }).join('')
+  + `<p style="font-size:.85rem;color:var(--muted);margin:.7rem 0 0">`
+  + `${stats.start} to ${stats.end}. Full detail is on the workbook's `
+  + `Summary sheet.</p>`;
+
+  $('results').classList.remove('hidden');
+}
+
+async function generate(sourcePath) {
+  clearError();
+  $('results').classList.add('hidden');
+  $('go').disabled = $('demo').disabled = true;
+  try {
+    log('Scheduling…');
+    const start = $('start').value || null;
+    const end = $('end').value || null;
+    const seed = $('seed').value === '' ? null : Number($('seed').value);
+
+    const build = pyodide.globals.get('build_from');
+    const result = build(sourcePath, start, end, seed);
+    const bytes = result.get(0).toJs();
+    const statsJson = result.get(1);
+    result.destroy(); build.destroy();
+
+    output = bytes;
+    outputName = `rota_${stamp()}.xlsx`;
+    renderResult(statsJson);
+    log(`Done — ${outputName}`);
+  } catch (error) {
+    const text = String(error && error.message ? error.message : error);
+    // Pyodide wraps Python tracebacks; the useful line is the last one.
+    const lines = text.trim().split('\n').filter(Boolean);
+    const last = lines[lines.length - 1] || text;
+    // Strip a leading exception name such as "ValueError:" or
+    // "zipfile.BadZipFile:" so the user sees only the message.
+    showError(last.replace(/^[\w.]*(?:Error|Exception|BadZipFile):\s*/, ''));
+    log('Could not build the rota.');
+  } finally {
+    $('go').disabled = $('demo').disabled = false;
+  }
+}
+
+$('tpl').addEventListener('click', () => {
+  clearError();
+  try {
+    const fn = pyodide.globals.get('make_template');
+    const bytes = fn().toJs();
+    fn.destroy();
+    saveBytes(bytes, 'roster_input.xlsx');
+    log('Template downloaded as roster_input.xlsx');
+  } catch (error) {
+    showError(String(error));
+  }
+});
+
+$('go').addEventListener('click', async () => {
+  const file = $('file').files[0];
+  if (!file) {
+    showError('Choose your filled-in workbook first, '
+            + 'or use "Try it with example data".');
+    return;
+  }
+  const buffer = await file.arrayBuffer();
+  pyodide.FS.writeFile('/input.xlsx', new Uint8Array(buffer));
+  log(`Read ${file.name} (${buffer.byteLength.toLocaleString()} bytes)`);
+  await generate('/input.xlsx');
+});
+
+$('demo').addEventListener('click', async () => {
+  clearError();
+  log('Building an example workbook to run against…');
+  await pyodide.runPythonAsync(
+    "from pathlib import Path\nimport lab_roster\n"
+    + "lab_roster.build_template(Path('/demo.xlsx'))");
+  await generate('/demo.xlsx');
+});
+
+$('dl').addEventListener('click', () => {
+  if (output) saveBytes(output, outputName);
+});
+
+boot();
+</script>
+</body>
+</html>

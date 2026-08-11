@@ -32,6 +32,7 @@ import argparse
 import random
 import re
 import sys
+import zipfile
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -41,6 +42,7 @@ try:
     from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
+    from openpyxl.utils.exceptions import InvalidFileException
     from openpyxl.worksheet.datavalidation import DataValidation
     from openpyxl.worksheet.properties import PageSetupProperties
 except ImportError:  # pragma: no cover - environment problem, not a code path
@@ -581,7 +583,14 @@ def read_table(sheet, required: list[str]) -> list[dict]:
 
 
 def load_config(path: Path) -> Config:
-    workbook = load_workbook(path, data_only=True)
+    try:
+        workbook = load_workbook(path, data_only=True)
+    except (zipfile.BadZipFile, InvalidFileException) as error:
+        raise ValueError(
+            f"{Path(path).name} is not a readable .xlsx workbook. It may be a "
+            f"different file type, an old .xls file, or damaged. Generate a "
+            f"fresh template and fill that in."
+        ) from error
 
     def sheet_for(*candidates):
         for candidate in candidates:
