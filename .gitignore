@@ -1,0 +1,24 @@
+# Spreadsheets are never committed.
+#
+# Both the input workbook and the generated rota are reproducible from the
+# script in two commands:
+#
+#   python lab_roster.py template --out roster_input.xlsx
+#   python lab_roster.py generate --input roster_input.xlsx --out rota.xlsx
+#
+# The input workbook is the file you fill in with real staff names, bands and
+# leave. That is personal data, and git history keeps it permanently - a later
+# deletion does not remove it from earlier commits. So the whole file type is
+# ignored rather than relying on remembering which copy is safe.
+*.xlsx
+*.xlsm
+*.csv
+
+# Excel lock files, created while a workbook is open
+~$*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
