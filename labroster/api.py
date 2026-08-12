@@ -206,9 +206,72 @@ def export_workbook(scheduler: Scheduler, analysis: Analysis,
     return buffer.getvalue()
 
 
+def eligible_staff(scheduler: Scheduler, iso_date: str,
+                   shift_code: str) -> list[dict]:
+    """Who could reasonably work a given shift on a given day.
+
+    Used to populate the replacement list when a manager changes an assignment, so
+    the obvious wrong answers are never offered.  Anybody already on that shift is
+    included and marked, because they are the people who might be swapped out.
+    """
+    day = date.fromisoformat(iso_date)
+    shift = scheduler.shift_by_code.get(shift_code)
+    if shift is None:
+        return []
+
+    options = []
+    for person in scheduler.config.staff:
+        assignment = scheduler.assignments.get((day, person.staff_id))
+        on_this_shift = bool(assignment and assignment.shift_code == shift_code)
+
+        reasons = []
+        if scheduler.on_leave(person.staff_id, day):
+            reasons.append(f"recorded as {scheduler.leave[(day, person.staff_id)]}")
+        if not person.availability.works_weekday(day, scheduler.period.start):
+            reasons.append(f"does not normally work {day.strftime('%A')}s")
+        if shift.is_night and not person.nights_ok:
+            reasons.append("does not work nights")
+        if scheduler.is_weekend(day) and not person.weekends_ok:
+            reasons.append("does not work weekends")
+        if assignment and not on_this_shift:
+            other = scheduler.shift_by_code.get(assignment.shift_code)
+            reasons.append(f"already on {other.name if other else assignment.shift_code}")
+
+        options.append({
+            "staff_id": person.staff_id,
+            "name": person.name,
+            "band": person.band,
+            "on_this_shift": on_this_shift,
+            "eligible": not reasons,
+            "why_not": "; ".join(reasons),
+            "competencies": sorted({
+                record.discipline.upper()
+                for record in scheduler.config.competencies_for(person.staff_id)
+                if record.is_independent(day)}),
+        })
+    options.sort(key=lambda item: (not item["on_this_shift"],
+                                   not item["eligible"], item["name"]))
+    return options
+
+
+def _adjustment_lists(adjustments: list[dict] | None):
+    """Turn manager adjustments into assignments to place and days to block."""
+    manual, blocked = [], set()
+    for item in adjustments or []:
+        day = date.fromisoformat(item["date"])
+        if item.get("remove"):
+            blocked.add((day, item["remove"]))
+        if item.get("add"):
+            manual.append(Assignment(day=day, staff_id=item["add"],
+                                     shift_code=item["shift"], source="manual",
+                                     reason=item.get("note", "")))
+    return manual, blocked
+
+
 def generate(data: bytes, start: str | None = None, end: str | None = None,
              alternative: int | None = None,
-             manual: list[dict] | None = None) -> dict:
+             manual: list[dict] | None = None,
+             adjustments: list[dict] | None = None) -> dict:
     """Read a workbook, build a draft roster and report on it.
 
     Returns a dictionary with ``ok`` set to False and a list of problems when the
@@ -249,8 +312,11 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
                    shift_code=item["shift_code"], source="manual")
         for item in (manual or [])
     ]
+    from_adjustments, blocked = _adjustment_lists(adjustments)
+    manual_assignments.extend(from_adjustments)
 
-    scheduler = Scheduler(config, manual_assignments=manual_assignments)
+    scheduler = Scheduler(config, manual_assignments=manual_assignments,
+                          blocked=blocked)
     scheduler.build()
     analysis = Analysis(scheduler)
 
@@ -261,6 +327,8 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
         "problems": _problem_payload(problems),
         "details": _details_payload(config),
         "generation_id": config.rules.seed,
+        "adjustments": list(adjustments or []),
+        "manual_count": len(manual_assignments),
         "dashboard": analysis.metrics,
         "issues": analysis.issues_payload(),
         "hours": analysis.hours_payload(),

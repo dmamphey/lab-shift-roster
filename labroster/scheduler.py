@@ -86,7 +86,8 @@ class Scheduler:
     """Builds a draft roster from a :class:`~labroster.models.Config`."""
 
     def __init__(self, config: Config,
-                 manual_assignments: list[Assignment] | None = None):
+                 manual_assignments: list[Assignment] | None = None,
+                 blocked: set[tuple[date, str]] | None = None):
         self.config = config
         self.rules = config.rules
         self.period = config.period
@@ -120,6 +121,11 @@ class Scheduler:
                 person.credited_absence_hours = round(
                     person.credited_absence_hours
                     + config.credited_hours_for(entry, person), 4)
+
+        # Days a manager has explicitly taken somebody off. Removing a person is
+        # not the same as leaving them unassigned: without this the scheduler would
+        # simply put them back when it filled the shift.
+        self.blocked: set[tuple[date, str]] = set(blocked or ())
 
         self.assignments: dict[tuple[date, str], Assignment] = {}
         self.bench_allocations: list[BenchAllocation] = []
@@ -340,6 +346,8 @@ class Scheduler:
 
         if (day, staff_id) in self.assignments:
             return False                                  # one shift per day
+        if (day, staff_id) in self.blocked:
+            return False                                  # manager removed them
         if self.on_leave(staff_id, day):
             return False                                  # leave is absolute
         if day in self.recovery_days[staff_id]:

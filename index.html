@@ -438,6 +438,40 @@
   <div id="issue-list" role="tabpanel" aria-live="polite"></div>
 </section>
 
+<section class="panel" aria-labelledby="adjust-heading">
+  <h2 id="adjust-heading">Adjust an assignment</h2>
+  <p class="hint">Change who is working a shift. LabRoster re-runs every check
+     afterwards, so you see straight away whether the change creates a new problem.
+     Manual changes are kept and are never overwritten when the roster is rebuilt.</p>
+  <div class="row" style="margin-bottom:1rem">
+    <div class="field">
+      <label for="a-date">Date</label>
+      <select id="a-date"></select>
+    </div>
+    <div class="field">
+      <label for="a-shift">Shift</label>
+      <select id="a-shift"></select>
+    </div>
+    <div class="field" style="min-width:210px">
+      <label for="a-out">Take off (not rostered that day)</label>
+      <select id="a-out"></select>
+    </div>
+    <div class="field" style="min-width:210px">
+      <label for="a-in">Put on this shift</label>
+      <select id="a-in"></select>
+    </div>
+    <div class="field" style="flex:1 1 180px">
+      <label for="a-note">Reason (optional)</label>
+      <input type="search" id="a-note" placeholder="e.g. swap agreed">
+    </div>
+    <div class="field" style="align-self:flex-end">
+      <button id="a-apply">Apply change</button>
+    </div>
+  </div>
+  <p class="hint" id="a-help" style="margin:0 0 1rem"></p>
+  <div id="a-list"></div>
+</section>
+
 <section class="panel" aria-labelledby="preview-heading">
   <h2 id="preview-heading">Roster preview</h2>
   <p class="hint">Scroll sideways to see the whole period. Filter to focus on one
@@ -587,15 +621,22 @@ def _balanced():
 
 _STATE = {}
 
-def _generate(source, start, end, alternative):
+def _generate(source, start, end, alternative, adjustments_json="[]"):
     data = Path(source).read_bytes()
     result = api.generate(data, start=start or None, end=end or None,
-                          alternative=alternative)
+                          alternative=alternative,
+                          adjustments=json.loads(adjustments_json or "[]"))
     # Keep the built roster so either workbook can be exported later without
     # rescheduling, which would otherwise discard manual adjustments.
     _STATE["scheduler"] = result.pop("_scheduler", None)
     _STATE["analysis"] = result.pop("_analysis", None)
     return json.dumps(result)
+
+def _options(iso_date, shift_code):
+    scheduler = _STATE.get("scheduler")
+    if scheduler is None:
+        return "[]"
+    return json.dumps(api.eligible_staff(scheduler, iso_date, shift_code))
 
 def _export(audience):
     scheduler, analysis = _STATE.get("scheduler"), _STATE.get("analysis")
@@ -613,6 +654,7 @@ let currentTab = "CRITICAL";
 let product = null;
 let hasManualChanges = false;
 let lastSource = "/balanced.xlsx";
+let adjustments = [];
 
 /* Which internal generation IDs have already been used, so "Generate
    alternative roster" reliably produces something different each time. */
@@ -655,6 +697,7 @@ function enable(on) {
 function resetApplication() {
   latest = null;
   hasManualChanges = false;
+  adjustments = [];
   usedGenerationIds.clear();
 
   $("results").classList.add("hidden");
@@ -662,7 +705,8 @@ function resetApplication() {
 
   // Roster data and every derived view.
   for (const id of ["tiles", "issue-list", "grid", "coverage", "hours",
-                    "resilience", "legend", "dash-sub", "generation-note"]) {
+                    "resilience", "legend", "dash-sub", "generation-note",
+                    "a-list", "a-help"]) {
     $(id).innerHTML = "";
   }
   $("verdict-text").textContent = "";
@@ -835,7 +879,8 @@ async function generate(source) {
     const end = $("end").value || "";
     const alternative = $("alt").value === "" ? 42 : Number($("alt").value);
     const call = pyodide.globals.get("_generate");
-    const json = call(source, start, end, alternative);
+    const json = call(source, start, end, alternative,
+                      JSON.stringify(adjustments));
     call.destroy();
     const result = JSON.parse(json);
 
@@ -845,7 +890,7 @@ async function generate(source) {
       return;
     }
     latest = result;
-    hasManualChanges = false;
+    hasManualChanges = adjustments.length > 0;
     if (result.generation_id) usedGenerationIds.add(Number(result.generation_id));
     render(result);
     $("generation-note").textContent =
@@ -865,6 +910,7 @@ async function generate(source) {
 /* --------------------------------------------------------------- render */
 
 function render(result) {
+  renderAdjust(result);
   renderDashboard(result);
   renderIssues(result);
   renderGrid(result);
@@ -1165,6 +1211,127 @@ function renderResilience(result) {
          </span> <span class="hint">${escapeHtml(item.message)}</span></td></tr>`
     ).join("") + "</tbody>";
 }
+
+/* ------------------------------------------------ manual adjustments */
+
+function renderAdjust(result) {
+  const days = result.roster.days;
+  $("a-date").innerHTML = days.map((day) =>
+    `<option value="${day.iso}">${escapeHtml(day.weekday)} `
+    + `${escapeHtml(day.iso)}</option>`).join("");
+  $("a-shift").innerHTML = result.roster.shifts.map((shift) =>
+    `<option value="${escapeHtml(shift.code)}">${escapeHtml(shift.name)} `
+    + `(${escapeHtml(shift.times)})</option>`).join("");
+  refreshAdjustOptions();
+  drawAdjustments();
+}
+
+/** Only offer people who could actually work the shift. */
+function refreshAdjustOptions() {
+  if (!latest) return;
+  const iso = $("a-date").value;
+  const code = $("a-shift").value;
+  if (!iso || !code) return;
+
+  let options = [];
+  try {
+    const call = pyodide.globals.get("_options");
+    options = JSON.parse(call(iso, code));
+    call.destroy();
+  } catch (error) {
+    $("a-help").textContent = friendly(error);
+    return;
+  }
+
+  const on = options.filter((item) => item.on_this_shift);
+  const free = options.filter((item) => !item.on_this_shift && item.eligible);
+
+  $("a-out").innerHTML = `<option value="">Nobody — just add somebody</option>`
+    + on.map((item) =>
+        `<option value="${escapeHtml(item.staff_id)}">`
+        + `${escapeHtml(item.name)}</option>`).join("");
+
+  $("a-in").innerHTML = `<option value="">Nobody — just take somebody off</option>`
+    + free.map((item) => {
+        const skills = item.competencies.length
+          ? ` — ${item.competencies.join(", ")}` : "";
+        return `<option value="${escapeHtml(item.staff_id)}">`
+             + `${escapeHtml(item.name)}${escapeHtml(skills)}</option>`;
+      }).join("");
+
+  const blocked = options.filter((item) => !item.eligible
+                                         && !item.on_this_shift).length;
+  $("a-help").textContent =
+    `${on.length} on this shift, ${free.length} available to add`
+    + (blocked ? `, ${blocked} not offered (on leave, not their working day, `
+                 + `or already working elsewhere)` : "");
+}
+
+function drawAdjustments() {
+  if (!adjustments.length) {
+    $("a-list").innerHTML =
+      `<p class="hint" style="margin:0">No manual changes. Everything in this `
+      + `draft was generated automatically.</p>`;
+    return;
+  }
+  $("a-list").innerHTML = `<h3>Manual changes</h3>`
+    + adjustments.map((item, index) => {
+        const names = (id) => {
+          const row = latest.roster.rows.find((r) => r.staff_id === id);
+          return row ? row.name : id;
+        };
+        const parts = [];
+        if (item.remove) parts.push(`off: ${escapeHtml(names(item.remove))}`);
+        if (item.add) parts.push(`on: ${escapeHtml(names(item.add))}`);
+        return `<div class="issue review" style="display:flex;`
+             + `justify-content:space-between;gap:1rem;align-items:center">`
+             + `<div><b>${escapeHtml(item.date)} · shift `
+             + `${escapeHtml(item.shift)}</b><br>`
+             + `<span class="meta">${parts.join(" · ")}`
+             + `${item.note ? " · " + escapeHtml(item.note) : ""}</span></div>`
+             + `<button class="secondary" data-undo="${index}">Undo</button></div>`;
+      }).join("")
+    + `<div class="actions" style="margin-top:.6rem">`
+    + `<button class="secondary" id="a-undo-all">Undo all changes</button></div>`;
+}
+
+async function applyAdjustments() {
+  await generate(lastSource);
+}
+
+$("a-apply").addEventListener("click", async () => {
+  const out = $("a-out").value;
+  const into = $("a-in").value;
+  if (!out && !into) {
+    $("a-help").textContent =
+      "Choose somebody to take off, somebody to put on, or both.";
+    return;
+  }
+  adjustments.push({
+    date: $("a-date").value, shift: $("a-shift").value,
+    remove: out || null, add: into || null,
+    note: $("a-note").value.trim(),
+  });
+  $("a-note").value = "";
+  await applyAdjustments();
+});
+
+for (const id of ["a-date", "a-shift"]) {
+  $(id).addEventListener("change", refreshAdjustOptions);
+}
+
+$("a-list").addEventListener("click", async (event) => {
+  const undo = event.target.getAttribute && event.target.getAttribute("data-undo");
+  if (undo !== null && undo !== undefined) {
+    adjustments.splice(Number(undo), 1);
+    await applyAdjustments();
+    return;
+  }
+  if (event.target.id === "a-undo-all") {
+    adjustments = [];
+    await applyAdjustments();
+  }
+});
 
 /* ---------------------------------------------------------------- events */
 
