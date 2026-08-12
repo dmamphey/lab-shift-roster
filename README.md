@@ -164,7 +164,6 @@ All on the **Rules** sheet, all yours to set:
 
 | Rule | Default |
 | --- | --- |
-| Senior band threshold | 6 |
 | Minimum rest hours between shifts | 11 |
 | Maximum consecutive days | 6 |
 | Maximum consecutive nights | 4 |
@@ -173,7 +172,12 @@ All on the **Rules** sheet, all yours to set:
 | Hours tolerance | 10% |
 | Competency expiry warnings | 30, 60, 90 days |
 | Max simultaneous bench assignments | 1 |
+| Max weekly hours per person | not set |
 | Section rotation warning | 56 days |
+
+Seniority is **not** inferred from band. It is recorded per person in the `Senior`
+column on the Staff sheet, and a shift needing a particular grade uses the
+separate `Min Band` requirement. There is deliberately no band threshold setting.
 
 The 11-hour rest default is a common starting point, not a compliance
 determination. Set it to whatever your organisation has agreed.
