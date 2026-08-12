@@ -4,6 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab Shift Roster — a free, secure and intelligent workforce planning tool for diagnostic laboratories</title>
+
+<!-- Google Analytics.
+     Measures how the application is used: page views and three product events.
+     Advertising features are switched off, and no workforce, workbook or roster
+     information is ever passed to it — see trackLabRosterEvent() below, which is
+     the only place in this application that sends an event. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L962W0939Q"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+
+  function gtag() {
+    dataLayer.push(arguments);
+  }
+
+  gtag("js", new Date());
+
+  gtag("config", "G-L962W0939Q", {
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false
+  });
+</script>
 <meta name="description" content="Lab Shift Roster builds draft laboratory rosters around staffing levels, competencies, working patterns, shift requirements and bench coverage. Your workforce workbook is processed locally in your browser and is not uploaded to Optymum SS.">
 <meta name="author" content="Optymum SS">
 <meta property="og:type" content="website">
@@ -375,7 +396,9 @@
     <strong>Your workforce data stays on your device.</strong>
     Lab Shift Roster processes your workbook locally in your browser and does not upload
     it to Optymum SS. No roster is stored on an external database, and the
-    workbook you download is created on your own computer.
+    workbook you download is created on your own computer. Limited information
+    about how the application is used is sent to Google Analytics; staff, roster,
+    competency, leave and workbook data are never included.
   </div>
 </header>
 
@@ -419,7 +442,8 @@
       <input type="file" id="file" accept=".xlsx"
              aria-describedby="file-help" disabled>
       <p id="file-help" class="hint" style="margin:.4rem 0 0">
-        Excel workbook (.xlsx). Nothing is uploaded anywhere.</p>
+        Excel workbook (.xlsx). It is read inside this browser tab and is not
+        uploaded anywhere.</p>
     </div>
   </div>
 
@@ -641,6 +665,18 @@
        network. Please include only the workforce information the tool needs.
        Do not add sensitive personal details, and never add patient-identifiable
        information — Lab Shift Roster does not require any.</p>
+    <h3>Usage analytics</h3>
+    <p>Limited information about how this application is used is sent to Google
+       Analytics: page views, and three events recording that a draft roster was
+       generated, a staff rota was exported or a manager report was exported.
+       Google Analytics also records the ordinary technical details any website
+       receives, such as approximate location, device type and browser.</p>
+    <p>The events are names alone. <strong>No staff, roster, competency, leave,
+       hours, organisation or workbook information is included</strong> — not
+       staff names or identifiers, not your file name, not any figure taken from
+       your workbook, and no error text. Nothing about your workforce leaves your
+       device. Advertising features, Google Signals and ad personalisation are
+       switched off.</p>
     <h3>How Lab Shift Roster works</h3>
     <p>The scheduling engine is rules-based, not artificial intelligence. It fills
        the shifts you define, in an order that satisfies the hardest requirements
@@ -761,6 +797,46 @@ function nextGenerationId() {
     candidate = 1 + Math.floor(Math.random() * 9998);
   } while (usedGenerationIds.has(candidate));
   return candidate;
+}
+
+/* ------------------------------------------------------------- analytics */
+
+/*
+ * Lab Shift Roster analytics sends event names only.
+ *
+ * NEVER add:
+ * - staff names
+ * - staff IDs
+ * - organisation names
+ * - Trust names
+ * - laboratory names
+ * - workbook filenames
+ * - workbook contents
+ * - roster contents
+ * - competency information
+ * - leave information
+ * - sickness information
+ * - working restrictions
+ * - shift allocations
+ * - roster dates
+ * - uploaded files
+ * - generated files
+ *
+ * The single argument is a fixed string literal chosen from the three event
+ * names below. There is deliberately no parameter object: nothing about the
+ * workforce can reach Google Analytics through this function.
+ *
+ *     roster_generated         a user's own workbook produced a draft roster
+ *     staff_rota_exported      a staff rota workbook was downloaded
+ *     manager_report_exported  a manager report workbook was downloaded
+ *
+ * Each is recorded only after the operation has succeeded, and only for a
+ * workbook the user uploaded — the built-in examples do not count as use.
+ */
+function trackLabRosterEvent(eventName) {
+  if (typeof window.gtag !== "function") return;
+
+  window.gtag("event", eventName);
 }
 
 /* ---------------------------------------------------------------- status */
@@ -931,9 +1007,13 @@ async function boot() {
     applyProductInfo();
 
     setStatus("Lab Shift Roster ready", false);
+    // Kept accurate rather than reassuring: the analytics tag is itself a
+    // third-party host, so the local-runtime message no longer claims that none
+    // is contacted.
     $("runtime-source").textContent = runtimeIsLocal
-      ? "This deployment serves the Python runtime from its own domain, so no "
-        + "third-party host is contacted."
+      ? "This deployment serves the Python runtime from its own domain, so your "
+        + "workbook is processed without contacting any other host. Google "
+        + "Analytics is loaded separately, and receives no workbook information."
       : "This deployment loads the Python runtime from a public CDN "
         + "(cdn.jsdelivr.net). It can be self-hosted instead so that everything "
         + "comes from one domain.";
@@ -989,6 +1069,14 @@ async function writeTemplate(kind) {
 
 /* ------------------------------------------------------------- generate */
 
+/**
+ * Build a draft roster from the workbook at `source`.
+ *
+ * Returns true only when a usable draft was produced and rendered, and false
+ * when validation fails, the engine reports a problem it cannot work around, or
+ * anything throws. Callers use that to decide whether the operation is worth
+ * recording; the interface behaviour is unchanged either way.
+ */
 async function generate(source) {
   lastSource = source;
   clearProblems();
@@ -1008,7 +1096,7 @@ async function generate(source) {
     if (!result.ok) {
       setStatus("Lab Shift Roster ready", false);
       showProblems(result.fatal, result.problems);
-      return;
+      return false;
     }
     latest = result;
     hasManualChanges = adjustments.length > 0;
@@ -1019,10 +1107,12 @@ async function generate(source) {
       + `roster" to produce a different draft from the same information.`;
     setStatus("Draft roster ready — please review the issues", false);
     $("results").classList.remove("hidden");
+    return true;
   } catch (error) {
     setStatus("Lab Shift Roster ready", false);
     showProblems("The roster could not be built.",
                  [{ message: friendly(error) }]);
+    return false;
   } finally {
     enable(true);
   }
@@ -1471,7 +1561,15 @@ $("btn-generate").addEventListener("click", async () => {
   }
   const buffer = await file.arrayBuffer();
   pyodide.FS.writeFile("/upload.xlsx", new Uint8Array(buffer));
-  await generate("/upload.xlsx");
+  const success = await generate("/upload.xlsx");
+
+  /* Recorded here rather than inside generate(), which also runs for the built-in
+     examples, for "Generate alternative roster" and after every manual
+     adjustment. This handler is the one place that means what the event says: a
+     user's own workbook produced a draft roster. */
+  if (success) {
+    trackLabRosterEvent("roster_generated");
+  }
 });
 
 async function tryExample(kind) {
@@ -1519,6 +1617,17 @@ async function exportWorkbook(audience) {
     download(pyodide.FS.readFile(path), name);
     setStatus(`${label.charAt(0).toUpperCase()}${label.slice(1)} downloaded`,
               false);
+
+    /* Past every step that can fail: the engine produced a path, the file was
+       read, and the download has been started. An export of a built-in example
+       is not product use, so only an uploaded workbook is recorded. */
+    if (lastSource === "/upload.xlsx") {
+      if (audience === "staff") {
+        trackLabRosterEvent("staff_rota_exported");
+      } else if (audience === "manager") {
+        trackLabRosterEvent("manager_report_exported");
+      }
+    }
   } catch (error) {
     setStatus("Lab Shift Roster ready", false);
     showProblems("That export did not work.",

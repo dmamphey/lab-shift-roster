@@ -368,6 +368,20 @@ every category of warning, and tests assert that it does.
 - No absolute security guarantees are made
 - Patient-identifiable data is never required and should never be added
 
+Usage analytics are the one exception to "nothing is transmitted", and the
+distinction matters: the **page** reports how it is used, the **workbook** does
+not leave the device. Google Analytics 4 (`G-L962W0939Q`) receives page views and
+three event names — `roster_generated`, `staff_rota_exported`,
+`manager_report_exported` — each recorded only after the operation has succeeded,
+and only for a workbook the user uploaded, so the built-in examples do not count.
+
+`trackLabRosterEvent()` in `index.html` is the only place an event is sent. It
+takes an event name and nothing else: there is no parameter object, so no staff,
+roster, competency, leave, hours, organisation, filename or error text can reach
+Google Analytics even by accident. Google Signals and ad personalisation are
+switched off in the page configuration, and no advertising, remarketing, User-ID
+or Enhanced Conversions features are enabled.
+
 ## A note on GitHub Pages
 
 The repository contains an empty `.nojekyll` file at its root. Without it, GitHub
