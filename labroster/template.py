@@ -282,7 +282,10 @@ DEFAULT_REQUIREMENTS = [
     ("L", "Weekday", 2, 1, 1, 0, 0, 0, 0, 1, "BT:1", "BT:1", ""),
     ("N", "All", 1, 1, 1, 0, 0, 0, 0, 0, "BT:1, HAEM:1", "BT:1",
      "Lone working out of hours"),
-    ("W", "Weekend", 3, 2, 1, 0, 0, 1, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+    # A two-person weekend, with the senior on duty also coordinating. Three was
+    # about four per cent more work than this workforce is contracted for, which
+    # pushed most people slightly over their target hours.
+    ("W", "Weekend", 2, 2, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
 ]
 
 RULES_ROWS = [
@@ -301,6 +304,9 @@ RULES_ROWS = [
     ("Cross cover allowed", "N",
      "Reserved for future use: allowing one person to cover two sections."),
     ("Weekend days", "Saturday, Sunday", "Which days count as the weekend."),
+    ("Share nights evenly", "N",
+     "Spread nights across everyone eligible. Fairer, but a night block also "
+     "books the recovery days after it, so this can reduce day-service cover."),
     ("Section rotation warning (days)", 56,
      "Warn if somebody has not worked a section for this long."),
     ("Alternative roster number", 42,
@@ -696,10 +702,14 @@ def _balanced_staff():
     """A fictional department that is genuinely well staffed.
 
     Deliberately resilient: at least three independently competent staff in every
-    discipline, several authorisers, enough seniors and coordinators, and
-    part-time patterns spread across the week rather than clustered at the start.
-    Contracted hours are sized to the service this laboratory actually runs, so
-    most people land close to their target.
+    discipline, several authorisers, and part-time patterns spread across the week
+    rather than clustered at the start.  Contracted hours are sized to the service
+    this laboratory actually runs, so most people land close to their target.
+
+    Result authorisation and morphology sit with the senior group, which is how
+    many laboratories work.  That concentrates demand on those people, so this
+    example carries a deep senior pool rather than pushing authorisation down the
+    grades: nine of the fourteen are senior, several of them part-time.
     """
     return [
         _staff_row("B01", "Ada Sample", "Laboratory Manager", "8a",
@@ -714,12 +724,12 @@ def _balanced_staff():
         _staff_row("B05", "Emre Placeholder", "Senior BMS", "6",
                    senior="Y", coordinator="Y"),
         _staff_row("B06", "Fen Mock", "Senior BMS", "6", senior="Y"),
-        _staff_row("B07", "Gale Dummy", "BMS", "5"),
-        _staff_row("B08", "Hero Specimen", "BMS", "5", hours=30.0, fte=0.8,
-                   pattern="Part time", days="MTWRS",
+        _staff_row("B07", "Gale Dummy", "Senior BMS", "6", senior="Y"),
+        _staff_row("B08", "Hero Specimen", "Senior BMS", "6", senior="Y",
+                   hours=30.0, fte=0.8, pattern="Part time", days="MTWRS",
                    restrictions="No Fridays; available Saturdays"),
-        _staff_row("B09", "Iris Template", "BMS", "5", hours=30.0, fte=0.8,
-                   pattern="Part time", days="MTRFU",
+        _staff_row("B09", "Iris Template", "Senior BMS", "6", senior="Y",
+                   hours=30.0, fte=0.8, pattern="Part time", days="MTRFU",
                    restrictions="No Wednesdays; available Sundays"),
         _staff_row("B10", "Jules Draft", "BMS", "5", hours=30.0, fte=0.8,
                    pattern="Part time", days="TWRFS",
@@ -775,15 +785,14 @@ def _balanced_competencies(period_start: date):
         ("B07", "BT", "Crossmatch and electronic issue", C, N, N, Y),
         ("B07", "HAEM", "Full blood count reporting", C, N, N, N),
         ("B07", "COAG", "Routine coagulation", C, N, N, N),
-        ("B08", "BT", "Crossmatch and electronic issue", C, N, N, N),
+        ("B08", "BT", "Crossmatch and electronic issue", C, N, N, Y),
         ("B08", "HAEM", "Full blood count reporting", C, N, N, N),
         ("B08", "COAG", "Routine coagulation", C, N, N, N),
+        ("B08", "MORPH", "Blood film morphology", C, N, N, Y),
         ("B09", "BT", "Crossmatch and electronic issue", C, N, N, Y),
         ("B09", "HAEM", "Full blood count reporting", C, N, N, N),
         ("B09", "MORPH", "Blood film morphology", C, N, N, N),
         ("B07", "MORPH", "Blood film morphology", C, N, N, N),
-        ("B10", "MORPH", "Blood film morphology", C, N, N, N),
-        ("B12", "MORPH", "Blood film morphology", C, N, N, N),
         ("B13", "COAG", "Routine coagulation", C, N, N, N),
         ("B10", "BT", "Crossmatch and electronic issue", C, N, N, N),
         ("B10", "HAEM", "Full blood count reporting", C, N, N, N),
@@ -828,7 +837,10 @@ BALANCED_REQUIREMENTS = [
     # very people it needs.
     ("N", "All", 1, 1, 0, 0, 0, 0, 0, 0, "BT:1, HAEM:1", "BT:1",
      "Lone working out of hours"),
-    ("W", "Weekend", 3, 2, 1, 0, 0, 1, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+    # A two-person weekend, with the senior on duty also coordinating. Three was
+    # about four per cent more work than this workforce is contracted for, which
+    # pushed most people slightly over their target hours.
+    ("W", "Weekend", 2, 2, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
 ]
 
 

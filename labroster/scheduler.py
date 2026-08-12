@@ -404,14 +404,44 @@ class Scheduler:
 
         def sort_key(person: Staff):
             staff_id = person.staff_id
-            unpopular = 0
-            if shift.is_night:
-                unpopular = self.count_nights(staff_id)
-            elif weekend:
-                unpopular = self.count_weekend_days(staff_id)
+
+            if shift.is_night and self.rules.share_nights_evenly:
+                # The manager has asked for nights to be shared out, accepting
+                # that it may cost some day-service cover.
+                return (
+                    self.count_nights(staff_id),
+                    -self.hours_deficit(staff_id),
+                    self.count_shift_code(staff_id, shift.code),
+                    self.consecutive_run(staff_id, day),
+                    self.rng.random(),
+                )
+
+            if weekend and not shift.is_night:
+                # Weekend days lead on who has done fewest of them.
+                #
+                # Ordering by hours deficit first concentrates weekends on
+                # full-time staff: a larger target means a larger absolute
+                # deficit, so they win every early comparison and absorb the
+                # weekends while part-time colleagues do none. A weekend day
+                # costs nothing but itself, so sharing them out is close to free.
+                return (
+                    self.count_weekend_days(staff_id),  # least burdened first
+                    -self.hours_deficit(staff_id),      # then most owed work
+                    self.count_shift_code(staff_id, shift.code),
+                    self.consecutive_run(staff_id, day),
+                    self.rng.random(),
+                )
+
+            # Nights keep hours owed first, with night count as the tie-break.
+            # Spreading night *blocks* more widely also spreads the recovery days
+            # that follow them, and each block takes five days out of one person's
+            # availability. Pushing them onto more people fragments cover for the
+            # day service, which measurably costs shifts their requirements. Cover
+            # is the point of the roster; fairness is a soft target, so it yields
+            # here rather than the other way round.
             return (
                 -self.hours_deficit(staff_id),      # most below target first
-                unpopular,                           # then least burdened
+                self.count_nights(staff_id) if shift.is_night else 0,
                 self.count_shift_code(staff_id, shift.code),
                 self.consecutive_run(staff_id, day),
                 self.rng.random(),

@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from .models import CompetencyStatus, Config
-from .scheduler import Scheduler
+from .scheduler import Scheduler, Shortfall
 
 CRITICAL = "CRITICAL"
 REVIEW = "REVIEW"
@@ -98,6 +98,7 @@ class Analysis:
         self.period = scheduler.period
         self.by_id = scheduler.by_id
 
+        self.gaps: list[Shortfall] = []
         self.issues: list[Issue] = []
         self.hours_rows: list[HoursRow] = []
         self.workforce_resilience: list[Resilience] = []
@@ -110,6 +111,7 @@ class Analysis:
     # ------------------------------------------------------------------
 
     def run(self) -> None:
+        self.gaps = self.final_gaps()
         self.check_shift_coverage()
         self.check_bench_coverage()
         self.check_double_bench_allocation()
@@ -247,6 +249,52 @@ class Analysis:
         """
         return (code or "").upper()
 
+    def final_gaps(self) -> list[Shortfall]:
+        """Coverage gaps in the *finished* roster.
+
+        Recomputed rather than taken from the shortfalls the scheduler recorded
+        while building, because those are a construction log: a gap noted part-way
+        through filling a shift may be resolved by the time the shift is complete.
+        Reporting the log would show a manager a critical problem that no longer
+        exists, and would disagree with the compliance figure, which is measured
+        from the finished roster.
+        """
+        scheduler = self.scheduler
+        gaps: list[Shortfall] = []
+
+        for day in self.period.days:
+            for shift in self.config.shifts:
+                if not shift.applies_on(day, self.rules.weekend_days):
+                    continue
+                requirement = self.config.requirement_for(shift, day)
+                assigned = scheduler.assigned_to(day, shift)
+
+                if requirement.min_staff and len(assigned) < requirement.min_staff:
+                    gaps.append(Shortfall(
+                        day=day, shift_code=shift.code, kind="staffing",
+                        detail=(f"{len(assigned)} of {requirement.min_staff} "
+                                f"staff available"),
+                        needed=requirement.min_staff, found=len(assigned)))
+
+                for need in scheduler.outstanding_needs(day, shift, requirement):
+                    gaps.append(Shortfall(
+                        day=day, shift_code=shift.code, kind=need["kind"],
+                        detail=f"no available {need['label']}",
+                        needed=need["missing"], found=0,
+                        discipline=need.get("discipline", "")))
+
+                for bench in scheduler.benches_for(day, shift):
+                    wanted = bench.required_on(day, self.rules.weekend_days)
+                    allocated = scheduler.bench_staff(day, bench.name, shift.code)
+                    if wanted and len(allocated) < wanted:
+                        gaps.append(Shortfall(
+                            day=day, shift_code=shift.code, kind="bench",
+                            detail=(f"{bench.name}: {len(allocated)} of {wanted} "
+                                    f"independently competent staff allocated"),
+                            needed=wanted, found=len(allocated),
+                            discipline=bench.discipline, bench_name=bench.name))
+        return gaps
+
     def check_shift_coverage(self) -> None:
         """Report coverage gaps as one problem per shift, per cause.
 
@@ -256,7 +304,7 @@ class Analysis:
         single actionable issue, with the underlying checks kept for traceability.
         """
         grouped: dict[tuple, list] = defaultdict(list)
-        for shortfall in self.scheduler.shortfalls:
+        for shortfall in self.gaps:
             key = (shortfall.day, shortfall.shift_code,
                    (shortfall.discipline or "").upper())
             grouped[key].append(shortfall)
@@ -755,14 +803,14 @@ class Analysis:
             "main_causes": dict(causes.most_common()),
             "required_slots": required,
             "filled_slots": filled,
-            "unfilled_shifts": len([s for s in self.scheduler.shortfalls
-                                    if s.kind == "staffing"]),
-            "uncovered_benches": len([s for s in self.scheduler.shortfalls
-                                      if s.kind == "bench"]),
-            "senior_cover_gaps": len([s for s in self.scheduler.shortfalls
-                                      if s.kind == "senior"]),
-            "competency_gaps": len([s for s in self.scheduler.shortfalls
-                                    if s.kind in ("competency", "authoriser")]),
+            "unfilled_shifts": len([g for g in self.gaps
+                                    if g.kind == "staffing"]),
+            "uncovered_benches": len([g for g in self.gaps
+                                      if g.kind == "bench"]),
+            "senior_cover_gaps": len([g for g in self.gaps
+                                      if g.kind == "senior"]),
+            "competency_gaps": len([g for g in self.gaps
+                                    if g.kind in ("competency", "authoriser")]),
             "rest_conflicts": len(self.scheduler.rest_conflicts),
             "staff_outside_target_hours": len(
                 [row for row in self.hours_rows

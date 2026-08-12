@@ -147,3 +147,45 @@ def test_a_single_handed_night_can_satisfy_two_competencies(balanced_bytes):
                   and issue["severity"] == "CRITICAL"]
     assert night_gaps == [], \
         f"the single-handed night should be satisfiable: {night_gaps[:2]}"
+
+
+# --- sharing nights is a documented choice, not a hidden default -------------
+
+def test_nights_are_not_shared_evenly_by_default(balanced_bytes):
+    """Coverage wins by default; the trade-off is measured, not assumed."""
+    import io
+    from labroster.scheduler import Scheduler
+    from labroster.analysis import Analysis
+    from labroster.workbook import read_workbook
+
+    config, _ = read_workbook(io.BytesIO(balanced_bytes))
+    assert config.rules.share_nights_evenly is False
+
+    scheduler = Scheduler(config)
+    scheduler.build()
+    analysis = Analysis(scheduler)
+    assert analysis.metrics["shifts_meeting_all_requirements_percent"] == 100.0
+
+
+def test_turning_night_sharing_on_spreads_nights_more_widely(balanced_bytes):
+    import io
+    from labroster.scheduler import Scheduler
+    from labroster.workbook import read_workbook
+
+    spreads = {}
+    for share in (False, True):
+        config, _ = read_workbook(io.BytesIO(balanced_bytes))
+        config.rules.share_nights_evenly = share
+        scheduler = Scheduler(config)
+        scheduler.build()
+        counts = [scheduler.count_nights(person.staff_id)
+                  for person in config.staff if person.nights_ok]
+        spreads[share] = max(counts) - min(counts)
+
+    assert spreads[True] < spreads[False], (
+        f"sharing should narrow the spread of nights: {spreads}")
+
+
+def test_weekend_days_are_shared_without_being_asked(balanced):
+    """A weekend day costs nothing but itself, so sharing them is close to free."""
+    assert balanced["dashboard"]["weekend_fairness"] in ("Good", "Review")
