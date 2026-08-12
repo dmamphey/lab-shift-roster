@@ -65,6 +65,24 @@ Open the application, then:
 
 Nothing is installed and nothing is uploaded.
 
+## The user guide
+
+`user-guide.html` is the full guide, 24 sections covering every sheet, the
+dashboard, the issue list and both exports. It is linked from the footer of the
+application.
+
+`Lab-Shift-Roster-1.1-User-Guide.pdf` is the same document, 20 pages of A4, with
+the contents list and every heading anchor kept as clickable PDF links. It is
+produced by printing the page from a headless Chrome or Edge, so the two versions
+cannot drift apart:
+
+```
+python tools/build_guide_pdf.py
+```
+
+Rebuild it whenever the guide changes. The print stylesheet in the page keeps the
+brand colours rather than stripping them, so what is printed is what is on screen.
+
 ## How local processing works
 
 Lab Shift Roster runs a Python runtime compiled to WebAssembly (Pyodide) plus the
