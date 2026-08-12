@@ -181,6 +181,20 @@
   .tile.warn b { color: var(--review); }
   .tile.good b { color: var(--passed); }
 
+  .summary-grid { display: grid; gap: 1rem; margin: 1rem 0 1.25rem;
+                  grid-template-columns: minmax(210px, 260px) 1fr; }
+  @media (max-width: 700px) { .summary-grid { grid-template-columns: 1fr; } }
+  .severity-summary, .cause-summary {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+    padding: .8rem .95rem; }
+  .count-row { display: flex; justify-content: space-between; gap: 1rem;
+               padding: .28rem 0; font-size: .9rem; }
+  .count-row b { font-variant-numeric: tabular-nums; }
+  .count-row.critical b { color: var(--critical); }
+  .count-row.review b { color: var(--review); }
+  .count-row.passed b { color: var(--passed); }
+  .cause-summary h3 { margin-bottom: .5rem; }
+
   /* issues */
   .tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
   .tab { font: inherit; font-weight: 600; font-size: .88rem; cursor: pointer;
@@ -392,7 +406,12 @@
 
 <section class="panel" aria-labelledby="issues-heading">
   <h2 id="issues-heading">Issues</h2>
-  <p class="hint">Grouped by how much attention each one needs.</p>
+  <p class="hint">Grouped by how much attention each one needs. Related warnings
+     with the same underlying cause are combined into one item.</p>
+  <div class="summary-grid">
+    <div id="severity-summary" class="severity-summary"></div>
+    <div id="cause-summary" class="cause-summary"></div>
+  </div>
   <div class="tabs" role="tablist" aria-label="Issue severity">
     <button class="tab" role="tab" id="tab-CRITICAL" aria-selected="true"
             aria-controls="issue-list">Critical <span></span></button>
@@ -832,9 +851,13 @@ function renderDashboard(result) {
     : (d.review_count ? `${d.review_count} to review` : "Nothing outstanding");
 
   const tiles = [
-    ["Shift coverage", `${d.shift_coverage_percent}%`,
-     d.shift_coverage_percent >= 100 ? "good"
-       : (d.shift_coverage_percent >= 95 ? "warn" : "bad")],
+    ["Staffing slot coverage", `${d.staffing_slot_coverage_percent}%`,
+     d.staffing_slot_coverage_percent >= 100 ? "good"
+       : (d.staffing_slot_coverage_percent >= 95 ? "warn" : "bad")],
+    ["Shifts meeting all requirements",
+     `${d.shifts_meeting_all_requirements_percent}%`,
+     d.shifts_meeting_all_requirements_percent >= 95 ? "good"
+       : (d.shifts_meeting_all_requirements_percent >= 75 ? "warn" : "bad")],
     ["Unfilled shifts", d.unfilled_shifts, d.unfilled_shifts ? "bad" : "good"],
     ["Uncovered sections", d.uncovered_benches,
      d.uncovered_benches ? "bad" : "good"],
@@ -866,6 +889,23 @@ function renderIssues(result) {
   for (const key of Object.keys(counts)) {
     $(`tab-${key}`).querySelector("span").textContent = `(${counts[key]})`;
   }
+
+  $("severity-summary").innerHTML =
+    [["Critical", counts.CRITICAL, "critical"],
+     ["Review", counts.REVIEW, "review"],
+     ["Passed", counts.PASSED, "passed"]]
+    .map(([label, value, tone]) =>
+      `<div class="count-row ${tone}"><span>${label}</span>`
+      + `<b>${value}</b></div>`).join("");
+
+  const causes = Object.entries(result.dashboard.main_causes || {});
+  $("cause-summary").innerHTML = causes.length
+    ? `<h3>Main causes</h3>` + causes.map(([label, value]) =>
+        `<div class="count-row"><span>${escapeHtml(label)}</span>`
+        + `<b>${value}</b></div>`).join("")
+    : `<h3>Main causes</h3><p class="hint" style="margin:0">`
+      + `Nothing outstanding.</p>`;
+
   drawIssueList(result);
 }
 
@@ -891,6 +931,9 @@ function drawIssueList(result) {
             : issue.severity === "REVIEW" ? "Review" : "Critical")}</span>
         <span class="meta">${escapeHtml(issue.category)}</span></h4>
       <p>${escapeHtml(issue.explanation)}</p>
+      ${issue.required ? `<p class="meta"><b>Required:</b> `
+        + `${escapeHtml(issue.required)} &nbsp; <b>Available:</b> `
+        + `${escapeHtml(issue.available)}</p>` : ""}
       ${bits.length ? `<p class="meta">${bits.join(" &middot; ")}</p>` : ""}
       ${issue.review_point
         ? `<p class="check"><b>What to check:</b> ${escapeHtml(issue.review_point)}</p>`

@@ -159,7 +159,14 @@ def _instructions(workbook, scheduler, analysis) -> None:
                           f"({config.period.day_count} days)"),
         ("Staff included", len(config.staff)),
         ("Roster status", analysis.metrics["roster_status"]),
-        ("Shift coverage", f"{analysis.metrics['shift_coverage_percent']}%"),
+        ("Staffing slot coverage",
+         f"{analysis.metrics['staffing_slot_coverage_percent']}% "
+         f"({analysis.metrics['filled_slots']} of "
+         f"{analysis.metrics['required_slots']} positions occupied)"),
+        ("Shifts meeting all configured requirements",
+         f"{analysis.metrics['shifts_meeting_all_requirements_percent']}% "
+         f"({analysis.metrics['shift_instances_met']} of "
+         f"{analysis.metrics['shift_instances']} shifts)"),
     ]:
         sheet.cell(row=row, column=1, value=label).font = BOLD
         sheet.cell(row=row, column=2, value=value).font = SMALL

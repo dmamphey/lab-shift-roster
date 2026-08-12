@@ -41,6 +41,12 @@ class Issue:
     shift_code: str = ""
     bench_name: str = ""
     staff: list[str] = field(default_factory=list)
+    required: str = ""
+    available: str = ""
+    impact: str = ""
+    causes: list[str] = field(default_factory=list)
+    """The underlying checks that produced this issue.  Managers see one
+    actionable problem; traceability back to the individual rules is kept here."""
 
     @property
     def when(self) -> str:
@@ -128,7 +134,12 @@ class Analysis:
     # -- coverage --------------------------------------------------------
 
     def _expected_slots(self) -> tuple[int, int]:
-        """Required and filled staffing slots across the whole period."""
+        """Required and filled staffing slots across the whole period.
+
+        This is a headcount measure only: it says whether positions are occupied,
+        not whether the shift is adequately staffed.  See
+        :meth:`shift_requirement_compliance` for that.
+        """
         required = filled = 0
         for day in self.period.days:
             for shift in self.config.shifts:
@@ -140,58 +151,192 @@ class Analysis:
                               requirement.min_staff)
         return required, filled
 
+    def shift_requirement_compliance(self) -> tuple[int, int, Counter]:
+        """How many shift instances satisfy *every* configured condition.
+
+        A shift with all its positions occupied is not necessarily a shift that can
+        safely run, so this checks the whole set: minimum staffing, registration,
+        seniority, band, coordinator, competencies, authorisers, the trainee limit,
+        section coverage, availability and the configured rest interval.
+
+        Returns the number of shift instances, how many met everything, and a count
+        of why the others did not.
+        """
+        scheduler = self.scheduler
+        as_of = self.period.start
+        total = met = 0
+        reasons: Counter = Counter()
+
+        rest_by_day: dict[date, set[str]] = defaultdict(set)
+        for conflict in scheduler.rest_conflicts:
+            rest_by_day[conflict.day].add(conflict.staff_id)
+
+        for day in self.period.days:
+            for shift in self.config.shifts:
+                if not shift.applies_on(day, self.rules.weekend_days):
+                    continue
+                requirement = self.config.requirement_for(shift, day)
+                if not requirement.min_staff and not \
+                        scheduler.competency_demand(day, shift, requirement):
+                    continue                      # nothing configured for it
+                total += 1
+                failed: set[str] = set()
+
+                assigned = scheduler.assigned_to(day, shift)
+                if len(assigned) < requirement.min_staff:
+                    failed.add("Minimum staffing")
+
+                for need in scheduler.outstanding_needs(day, shift, requirement):
+                    category, _ = self.KIND_LABELS.get(
+                        need["kind"], ("Other requirement", ""))
+                    failed.add(category)
+
+                if requirement.max_trainees:
+                    trainees = sum(1 for sid in assigned
+                                   if self.by_id[sid].trainee)
+                    if trainees > requirement.max_trainees:
+                        failed.add("Trainee limit")
+
+                for bench in scheduler.benches_for(day, shift):
+                    wanted = bench.required_on(day, self.rules.weekend_days)
+                    if wanted and len(scheduler.bench_staff(
+                            day, bench.name, shift.code)) < wanted:
+                        failed.add("Section coverage")
+
+                for staff_id in assigned:
+                    person = self.by_id.get(staff_id)
+                    if person is None:
+                        continue
+                    if scheduler.on_leave(staff_id, day) or not \
+                            person.availability.works_weekday(day, as_of):
+                        failed.add("Availability")
+                    if staff_id in rest_by_day.get(day, ()):
+                        failed.add("Rest rules")
+
+                if failed:
+                    for reason in failed:
+                        reasons[reason] += 1
+                else:
+                    met += 1
+
+        return total, met, reasons
+
+    #: How a technical shortfall is described to a manager.
+    KIND_LABELS = {
+        "staffing": ("Staffing level", "staff"),
+        "senior": ("Senior cover", "senior member of staff"),
+        "registered": ("Registration", "registered biomedical scientist"),
+        "coordinator": ("Shift coordination", "shift coordinator"),
+        "competency": ("Competency coverage", "independently competent scientist"),
+        "authoriser": ("Authorisation", "result authoriser"),
+        "trainer": ("Training", "trainer or supervisor"),
+        "bench": ("Section coverage", "competent scientist for the section"),
+    }
+
+    def discipline_name(self, code: str) -> str:
+        """A discipline in words where the workbook gives one, otherwise the code."""
+        if not code:
+            return ""
+        for record in self.config.competencies:
+            if record.discipline.upper() == code.upper() and record.name:
+                return record.name
+        for bench in self.config.benches:
+            if bench.discipline.upper() == code.upper():
+                return bench.name
+        return code
+
     def check_shift_coverage(self) -> None:
-        staffing = [s for s in self.scheduler.shortfalls if s.kind == "staffing"]
-        for shortfall in staffing:
-            shift = self.config.shift_by_code().get(shortfall.shift_code)
-            self.add(CRITICAL, "Staffing level",
-                     f"{shift.name if shift else shortfall.shift_code} is short of staff",
-                     f"{shortfall.detail}. The shift is running below the minimum "
-                     f"staffing level set for it.",
-                     review_point="Find cover, use bank or agency, or reduce the "
-                                  "service planned for this shift.",
-                     day=shortfall.day, shift_code=shortfall.shift_code)
+        """Report coverage gaps as one problem per shift, per cause.
 
-        for kind, label, category in [
-            ("senior", "senior cover", "Senior cover"),
-            ("registered", "registered biomedical scientists", "Registration"),
-            ("coordinator", "a shift coordinator", "Shift coordination"),
-            ("competency", "required competency", "Competency"),
-            ("authoriser", "a result authoriser", "Authorisation"),
-            ("trainer", "a trainer or supervisor", "Training"),
-        ]:
-            for shortfall in [s for s in self.scheduler.shortfalls if s.kind == kind]:
-                shift = self.config.shift_by_code().get(shortfall.shift_code)
-                discipline = f" ({shortfall.discipline})" if shortfall.discipline else ""
-                self.add(CRITICAL, category,
-                         f"No {label}{discipline} on "
-                         f"{shift.name if shift else shortfall.shift_code}",
-                         f"This shift requires {label}{discipline} and none of the "
-                         f"available staff meet that requirement.",
-                         review_point="Check whether somebody competent can be "
-                                      "moved onto this shift, or whether the "
-                                      "requirement should be met differently.",
-                         day=shortfall.day, shift_code=shortfall.shift_code)
+        A missing morphology scientist previously produced two critical warnings —
+        one for the competency and one for the bench that consequently could not be
+        staffed. They are the same problem, so they are now consolidated into a
+        single actionable issue, with the underlying checks kept for traceability.
+        """
+        grouped: dict[tuple, list] = defaultdict(list)
+        for shortfall in self.scheduler.shortfalls:
+            key = (shortfall.day, shortfall.shift_code,
+                   (shortfall.discipline or "").upper())
+            grouped[key].append(shortfall)
 
-        if not staffing:
+        shift_by_code = self.config.shift_by_code()
+        seen_kinds: set[str] = set()
+
+        for (day, shift_code, discipline), group in sorted(
+                grouped.items(), key=lambda item: (item[0][0] or date.min,
+                                                   item[0][1], item[0][2])):
+            shift = shift_by_code.get(shift_code)
+            shift_label = shift.name if shift else shift_code
+            kinds = {item.kind for item in group}
+            seen_kinds |= kinds
+            benches = sorted({item.bench_name for item in group if item.bench_name})
+
+            # The most specific cause leads: a section that cannot be staffed is
+            # usually the consequence of a competency that nobody available holds.
+            lead = next((kind for kind in
+                         ("competency", "bench", "authoriser", "senior",
+                          "registered", "coordinator", "trainer", "staffing")
+                         if kind in kinds), "staffing")
+            category, role = self.KIND_LABELS.get(lead, ("Coverage", "staff"))
+
+            needed = max((item.needed for item in group), default=1)
+            found = min((item.found for item in group), default=0)
+            readable = self.discipline_name(discipline)
+
+            if lead in ("competency", "bench"):
+                subject = benches[0] if benches else (readable or "the section")
+                title = f"{subject} cannot be covered"
+                required = (f"{needed} independently competent "
+                            f"{readable or discipline} scientist"
+                            f"{'s' if needed > 1 else ''}")
+                impact = (f"{subject} cannot be staffed on this shift."
+                          if benches else
+                          f"The {readable or discipline} requirement for this "
+                          f"shift is not met.")
+                review = ("Consider moving a competent scientist onto this shift, "
+                          "changing the deployment plan, or arranging additional "
+                          "cover.")
+            elif lead == "staffing":
+                title = f"{shift_label} is short of staff"
+                required = f"{needed} staff"
+                impact = "The shift is running below its minimum staffing level."
+                review = ("Find cover, use bank or agency, or reduce the service "
+                          "planned for this shift.")
+            else:
+                title = f"No {role} on {shift_label}"
+                required = (f"{needed} {role}"
+                            + (f" ({readable})" if readable else ""))
+                impact = f"This shift's {category.lower()} requirement is not met."
+                review = ("Check whether somebody suitable can be moved onto this "
+                          "shift, or whether the requirement should be met "
+                          "differently.")
+
+            detail = "; ".join(sorted(item.detail for item in group))
+            # Required and Available are surfaced as their own fields, so the
+            # explanation states the consequence rather than repeating them.
+            self.add(CRITICAL, category, title,
+                     f"{shift_label}. {impact}",
+                     review_point=review, day=day, shift_code=shift_code,
+                     bench_name=benches[0] if benches else "",
+                     required=required, available=str(found), impact=impact,
+                     causes=sorted(kinds) + ([detail] if detail else []))
+
+        if "staffing" not in seen_kinds:
             self.add(PASSED, "Staffing level", "Minimum staffing met",
                      "Every shift in the period reached its minimum staffing level.")
+        if self.config.benches and not ({"bench", "competency"} & seen_kinds):
+            self.add(PASSED, "Section coverage",
+                     "Required section competencies covered",
+                     "Every section had the required number of independently "
+                     "competent staff allocated to it.")
 
     def check_bench_coverage(self) -> None:
-        bench_shortfalls = [s for s in self.scheduler.shortfalls if s.kind == "bench"]
-        for shortfall in bench_shortfalls:
-            self.add(CRITICAL, "Bench coverage",
-                     f"{shortfall.bench_name} not covered",
-                     f"{shortfall.detail}. Coverage counts only staff who are "
-                     f"independently competent and allocated to that bench.",
-                     review_point="Allocate a competent member of staff, or agree "
-                                  "that this section is not running on this shift.",
-                     day=shortfall.day, shift_code=shortfall.shift_code,
-                     bench_name=shortfall.bench_name)
-        if not bench_shortfalls and self.config.benches:
-            self.add(PASSED, "Bench coverage", "Required bench competencies covered",
-                     "Every bench had the required number of independently "
-                     "competent staff allocated to it.")
+        """Section gaps are reported by :meth:`check_shift_coverage`.
+
+        Kept as a separate step so the ordering of the issue list stays stable and
+        so a future part-shift allocation model has somewhere obvious to report.
+        """
+        return
 
     def check_double_bench_allocation(self) -> None:
         """Belt and braces: prove nobody holds two benches at once.
@@ -568,8 +713,16 @@ class Analysis:
         required, filled = self._expected_slots()
         coverage = 100.0 if not required else round(100.0 * filled / required, 1)
 
+        shifts_total, shifts_met, shift_reasons = \
+            self.shift_requirement_compliance()
+        compliance = (100.0 if not shifts_total
+                      else round(100.0 * shifts_met / shifts_total, 1))
+
         critical = [issue for issue in self.issues if issue.severity == CRITICAL]
         review = [issue for issue in self.issues if issue.severity == REVIEW]
+
+        # What is actually driving the problems, so a manager can start somewhere.
+        causes = Counter(issue.category for issue in critical + review)
 
         if critical:
             status = "ATTENTION REQUIRED"
@@ -583,7 +736,14 @@ class Analysis:
 
         self.metrics = {
             "roster_status": status,
-            "shift_coverage_percent": coverage,
+            # Headcount only: are the positions occupied?
+            "staffing_slot_coverage_percent": coverage,
+            # The meaningful one: does the shift satisfy everything configured?
+            "shifts_meeting_all_requirements_percent": compliance,
+            "shift_instances": shifts_total,
+            "shift_instances_met": shifts_met,
+            "requirement_failure_causes": dict(shift_reasons.most_common()),
+            "main_causes": dict(causes.most_common()),
             "required_slots": required,
             "filled_slots": filled,
             "unfilled_shifts": len([s for s in self.scheduler.shortfalls
@@ -630,6 +790,10 @@ class Analysis:
             "shift": issue.shift_code,
             "bench": issue.bench_name,
             "staff": [self.name_of(sid) for sid in issue.staff],
+            "required": issue.required,
+            "available": issue.available,
+            "impact": issue.impact,
+            "causes": issue.causes,
         } for issue in self.issues]
 
     def hours_payload(self) -> list[dict]:

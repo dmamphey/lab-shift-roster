@@ -61,7 +61,10 @@ def cmd_generate(args) -> int:
     print(f"{result['details']['period_label']}  "
           f"({dashboard['day_count']} days, {dashboard['staff_count']} staff)")
     print(f"\nRoster status      : {dashboard['roster_status']}")
-    print(f"Shift coverage     : {dashboard['shift_coverage_percent']}%")
+    print(f"Staffing slot cover: "
+          f"{dashboard['staffing_slot_coverage_percent']}%")
+    print(f"Shifts meeting all : "
+          f"{dashboard['shifts_meeting_all_requirements_percent']}%")
     for label, key in [
         ("Unfilled shifts", "unfilled_shifts"),
         ("Uncovered sections", "uncovered_benches"),
