@@ -308,7 +308,8 @@ RULES_ROWS = [
 ]
 
 
-def _instructions_sheet(workbook, is_demo: bool) -> None:
+def _instructions_sheet(workbook, is_demo: bool,
+                        balanced: bool = False) -> None:
     sheet = workbook.active
     sheet.title = "Instructions"
     sheet.sheet_view.showGridLines = False
@@ -320,32 +321,34 @@ def _instructions_sheet(workbook, is_demo: bool) -> None:
     sheet["A2"].font = Font(size=11, italic=True, color="5B6470")
 
     row = 4
-    if is_demo:
-        sheet.cell(row=row, column=1,
-                   value="EXAMPLE LABORATORY — every member of staff, competency, "
-                         "date and requirement in this workbook is fictional. "
-                         "Replace all of it with your own information.")
-        sheet.cell(row=row, column=1).font = Font(bold=True, size=11,
-                                                  color="9C0006")
-        sheet.cell(row=row, column=1).fill = PatternFill("solid", fgColor="FBE6E8")
-        sheet.cell(row=row, column=1).alignment = Alignment(wrap_text=True,
-                                                           vertical="center")
-        sheet.row_dimensions[row].height = 44
-        row += 2
+    if is_demo and balanced:
+        banner = ("BALANCED EXAMPLE LABORATORY — a well-staffed fictional "
+                  "department, included to show what LabRoster produces when a "
+                  "workforce comfortably covers its requirements. Every person, "
+                  "competency and date is fictional.")
+        ink, paper = "17603A", "E4F4EA"
+    elif is_demo:
+        banner = ("CHALLENGING EXAMPLE LABORATORY — this example deliberately "
+                  "contains staffing, competency, leave and availability "
+                  "constraints so you can see how LabRoster identifies problems. "
+                  "It is not typical. Every person, competency and date is "
+                  "fictional.")
+        ink, paper = "9C0006", "FBE6E8"
     else:
-        sheet.cell(row=row, column=1,
-                   value="BLANK TEMPLATE — the Staff, Competencies, Leave and "
-                         "Week Patterns sheets are empty and ready for your own "
-                         "information. The Shifts, Shift Requirements and Benches "
-                         "sheets contain a common starting configuration for you "
-                         "to adjust.")
-        sheet.cell(row=row, column=1).font = Font(bold=True, size=10,
-                                                  color="1D6B3F")
-        sheet.cell(row=row, column=1).fill = PatternFill("solid", fgColor="E3F4E9")
-        sheet.cell(row=row, column=1).alignment = Alignment(wrap_text=True,
-                                                           vertical="center")
-        sheet.row_dimensions[row].height = 44
-        row += 2
+        banner = ("BLANK WORKBOOK — the Staff, Competencies, Leave and Week "
+                  "Patterns sheets are empty and ready for your own information. "
+                  "The Shifts, Requirements and Benches sheets contain a common "
+                  "starting configuration for you to adjust.")
+        ink, paper = "1D6B3F", "E3F4E9"
+
+    # One place applies the styling and advances the row, so no branch can forget
+    # to and let the instructions below overwrite the banner.
+    cell = sheet.cell(row=row, column=1, value=banner)
+    cell.font = Font(bold=True, size=11, color=ink)
+    cell.fill = PatternFill("solid", fgColor=paper)
+    cell.alignment = Alignment(wrap_text=True, vertical="center")
+    sheet.row_dimensions[row].height = 44
+    row += 2
 
     for text, is_heading in INSTRUCTION_NOTES:
         cell = sheet.cell(row=row, column=1, value=text)
@@ -371,13 +374,15 @@ def _instructions_sheet(workbook, is_demo: bool) -> None:
 
 
 def _details_sheet(workbook, period_start: date, period_end: date,
-                   is_demo: bool) -> None:
+                   is_demo: bool, balanced: bool = False) -> None:
     sheet, header_row = _sheet(workbook, "Roster Details", ["Detail", "Value"],
                                widths=[30, 40], freeze=False)
     rows = [
-        ("Rota name", "Laboratory Staff Rota"),
+        ("Rota name", ("Balanced Example Rota" if balanced
+                       else "Laboratory Staff Rota")),
         ("Organisation", "Example NHS Trust" if is_demo else ""),
-        ("Department", "Blood Sciences" if is_demo else ""),
+        ("Department", ("Blood Sciences (balanced example)" if balanced
+                        else "Blood Sciences") if is_demo else ""),
         ("Site", "Example Hospital" if is_demo else ""),
         ("Prepared by", "A. Manager (example)" if is_demo else ""),
         ("Roster period start", period_start),
@@ -404,7 +409,7 @@ def _rules_sheet(workbook) -> None:
             Alignment(wrap_text=True, vertical="center")
 
 
-def _configuration_sheets(workbook) -> None:
+def _configuration_sheets(workbook, requirements=None) -> None:
     """Shifts, requirements, benches and leave types: the same in both workbooks."""
     sheet, header_row = _sheet(
         workbook, "Shifts", SHIFT_HEADERS, SHIFT_WIDTHS,
@@ -420,7 +425,7 @@ def _configuration_sheets(workbook) -> None:
         workbook, "Shift Requirements", REQUIREMENT_HEADERS, REQUIREMENT_WIDTHS,
         note="Required Competencies and Required Authorisers are written as "
              "discipline and number, for example:  BT:1, HAEM:2, COAG:1")
-    _write_rows(sheet, header_row, DEFAULT_REQUIREMENTS)
+    _write_rows(sheet, header_row, requirements or DEFAULT_REQUIREMENTS)
     _list_validation(sheet, header_row, 2,
                      ["All", "Weekday", "Weekend", "Monday", "Tuesday",
                       "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -657,45 +662,244 @@ def _demo_leave(period_start: date, period_end: date):
     ]
 
 
+# --------------------------------------------------------------------------
+# the balanced demonstration laboratory
+# --------------------------------------------------------------------------
+
+def _staff_row(staff_id, name, title, band, *, registered="Y", senior="N",
+               coordinator="N", trainee="N", hours=37.5, fte=1.0,
+               pattern="Full time", cycle=1, days="", earliest="",
+               latest="", max_days="", max_consecutive="", nights="Y",
+               weekends="Y", max_nights="", max_weekends="", max_period="",
+               max_weekly="", group="Main", restrictions="", notes=""):
+    """Build one Staff row without hand-writing thirty-two columns.
+
+    ``days`` is a compact pattern using one letter per day:
+    ``M T W R F S U`` for Monday to Sunday, so Thursday is ``R`` and Sunday ``U``.
+    An empty string means fully flexible, which is what a full-time member of staff
+    normally is.
+
+    Note that these columns are *availability*: somebody whose pattern excludes
+    Saturday and Sunday can never be rostered at a weekend, whatever the
+    "Works Weekends" column says.
+    """
+    letters = ["M", "T", "W", "R", "F", "S", "U"]        # R = Thursday, U = Sunday
+    marks = ["Y" if letter in days.upper() else "N" for letter in letters] \
+        if days else ["", "", "", "", "", "", ""]
+    return (staff_id, name, title, band, registered, senior, coordinator,
+            trainee, hours, fte, pattern, cycle, *marks, earliest, latest,
+            max_days, max_consecutive, nights, weekends, max_nights,
+            max_weekends, max_period, max_weekly, group, restrictions, notes)
+
+
+def _balanced_staff():
+    """A fictional department that is genuinely well staffed.
+
+    Deliberately resilient: at least three independently competent staff in every
+    discipline, several authorisers, enough seniors and coordinators, and
+    part-time patterns spread across the week rather than clustered at the start.
+    Contracted hours are sized to the service this laboratory actually runs, so
+    most people land close to their target.
+    """
+    return [
+        _staff_row("B01", "Ada Sample", "Laboratory Manager", "8a",
+                   senior="Y", coordinator="Y", nights="N", weekends="N",
+                   restrictions="Management time; no nights or weekends"),
+        _staff_row("B02", "Bruno Test", "Principal BMS", "7",
+                   senior="Y", coordinator="Y"),
+        _staff_row("B03", "Cleo Example", "Senior BMS", "6",
+                   senior="Y", coordinator="Y"),
+        _staff_row("B04", "Dara Demo", "Senior BMS", "6",
+                   senior="Y", coordinator="Y"),
+        _staff_row("B05", "Emre Placeholder", "Senior BMS", "6",
+                   senior="Y", coordinator="Y"),
+        _staff_row("B06", "Fen Mock", "Senior BMS", "6", senior="Y"),
+        _staff_row("B07", "Gale Dummy", "BMS", "5"),
+        _staff_row("B08", "Hero Specimen", "BMS", "5", hours=30.0, fte=0.8,
+                   pattern="Part time", days="MTWRS",
+                   restrictions="No Fridays; available Saturdays"),
+        _staff_row("B09", "Iris Template", "BMS", "5", hours=30.0, fte=0.8,
+                   pattern="Part time", days="MTRFU",
+                   restrictions="No Wednesdays; available Sundays"),
+        _staff_row("B10", "Jules Draft", "BMS", "5", hours=30.0, fte=0.8,
+                   pattern="Part time", days="TWRFS",
+                   restrictions="No Mondays; available Saturdays"),
+        _staff_row("B11", "Kit Trial", "BMS", "5", hours=30.0, fte=0.8,
+                   pattern="Part time", days="MWRFU",
+                   restrictions="No Tuesdays; available Sundays"),
+        _staff_row("B12", "Lior Proxy", "BMS", "5", hours=22.5, fte=0.6,
+                   pattern="Part time", days="MTW", weekends="N",
+                   restrictions="Monday to Wednesday; no weekends"),
+        _staff_row("B13", "Mira Stub", "BMS", "5", hours=22.5, fte=0.6,
+                   pattern="Part time", days="WRF", nights="N", weekends="N",
+                   restrictions="Wednesday to Friday; no nights or weekends"),
+        _staff_row("B14", "Noor Filler", "Trainee BMS", "4", hours=22.5, fte=0.6,
+                   pattern="Part time", days="MTW",
+                   registered="N", trainee="Y", nights="N", weekends="N",
+                   restrictions="Trainee; supervised working only"),
+    ]
+
+
+def _balanced_competencies(period_start: date):
+    """Every discipline has at least three independently competent staff.
+
+    Transfusion and haematology are widely held, which is what allows out-of-hours
+    cover to rotate around the team instead of resting on two or three people.
+    """
+    later = period_start + timedelta(days=400)
+    achieved = period_start - timedelta(days=500)
+    C, T, A, IT = (CompetencyStatus.COMPETENT, CompetencyStatus.TRAINER,
+                   CompetencyStatus.ASSESSOR, CompetencyStatus.IN_TRAINING)
+    Y, N = "Y", "N"
+
+    # staff, discipline, competency, status, trainer, assessor, authoriser
+    plan = [
+        ("B01", "HAEM", "Full blood count reporting", T, Y, Y, Y),
+        ("B01", "MORPH", "Blood film morphology", T, Y, Y, Y),
+        ("B02", "BT", "Crossmatch and electronic issue", T, Y, Y, Y),
+        ("B02", "HAEM", "Full blood count reporting", C, N, N, Y),
+        ("B02", "MORPH", "Blood film morphology", C, N, N, Y),
+        ("B03", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B03", "HAEM", "Full blood count reporting", C, N, N, Y),
+        ("B03", "COAG", "Routine coagulation", C, N, N, N),
+        ("B04", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B04", "HAEM", "Full blood count reporting", C, N, N, Y),
+        ("B04", "COAG", "Routine coagulation", A, Y, Y, N),
+        ("B04", "MORPH", "Blood film morphology", C, N, N, Y),
+        ("B05", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B05", "HAEM", "Full blood count reporting", C, N, N, Y),
+        ("B05", "MORPH", "Blood film morphology", C, N, N, N),
+        ("B06", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B06", "HAEM", "Full blood count reporting", C, N, N, Y),
+        ("B06", "COAG", "Routine coagulation", C, N, N, N),
+        ("B07", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B07", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B07", "COAG", "Routine coagulation", C, N, N, N),
+        ("B08", "BT", "Crossmatch and electronic issue", C, N, N, N),
+        ("B08", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B08", "COAG", "Routine coagulation", C, N, N, N),
+        ("B09", "BT", "Crossmatch and electronic issue", C, N, N, Y),
+        ("B09", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B09", "MORPH", "Blood film morphology", C, N, N, N),
+        ("B07", "MORPH", "Blood film morphology", C, N, N, N),
+        ("B10", "MORPH", "Blood film morphology", C, N, N, N),
+        ("B12", "MORPH", "Blood film morphology", C, N, N, N),
+        ("B13", "COAG", "Routine coagulation", C, N, N, N),
+        ("B10", "BT", "Crossmatch and electronic issue", C, N, N, N),
+        ("B10", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B10", "COAG", "Routine coagulation", C, N, N, N),
+        ("B11", "BT", "Crossmatch and electronic issue", C, N, N, N),
+        ("B11", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B12", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B12", "COAG", "Routine coagulation", C, N, N, N),
+        ("B13", "BT", "Crossmatch and electronic issue", C, N, N, N),
+        ("B13", "HAEM", "Full blood count reporting", C, N, N, N),
+        ("B14", "HAEM", "Sample processing", IT, N, N, N),
+    ]
+    names = {person[0]: person[1] for person in _balanced_staff()}
+    return [(staff_id, names.get(staff_id, ""), discipline, competency, status,
+             achieved, None, later, trainer, assessor, authoriser, "")
+            for staff_id, discipline, competency, status,
+            trainer, assessor, authoriser in plan]
+
+
+def _balanced_leave(period_start: date):
+    """A little absence, so credited hours are demonstrated without causing gaps."""
+    return [
+        ("B07", "Gale Dummy", period_start + timedelta(days=7),
+         period_start + timedelta(days=11), "A/L", "", "Booked leave"),
+        ("B10", "Jules Draft", period_start + timedelta(days=17),
+         period_start + timedelta(days=18), "A/L", "", "Booked leave"),
+    ]
+
+
+#: Requirements the balanced workforce can comfortably deliver.
+BALANCED_REQUIREMENTS = [
+    ("E", "Weekday", 1, 1, 0, 0, 0, 0, 0, 1, "", "", ""),
+    # Five on the main day service, not four: four sections needing four distinct
+    # competent people would leave no slack at all, so a single absence would put
+    # the shift out of compliance.
+    ("C", "Weekday", 5, 3, 1, 0, 0, 1, 0, 2,
+     "BT:1, HAEM:1, COAG:1, MORPH:1", "BT:1", "Main day service"),
+    ("L", "Weekday", 2, 1, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+    # The out-of-hours lone worker must be registered and competent. Requiring
+    # "senior" as well would restrict nights to a handful of people, tie them up
+    # in night blocks and recovery days, and leave the day service short of the
+    # very people it needs.
+    ("N", "All", 1, 1, 0, 0, 0, 0, 0, 0, "BT:1, HAEM:1", "BT:1",
+     "Lone working out of hours"),
+    ("W", "Weekend", 3, 2, 1, 0, 0, 1, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+]
+
+
+def build_balanced_workbook(path) -> None:
+    """A fictional laboratory that produces a strong draft with few problems.
+
+    The challenging example is deliberately hard, which is useful for showing what
+    LabRoster detects but misleading as a first impression: nobody should conclude
+    that the tool normally reports dozens of critical errors.
+    """
+    _build_example(path, flavour="balanced")
+
+
 def build_demo_workbook(path) -> None:
     """A complete fictional laboratory that triggers every kind of warning."""
+    _build_example(path, flavour="challenging")
+
+
+def _build_example(path, flavour: str) -> None:
+    """Write one of the two demonstration laboratories.
+
+    ``challenging`` is the stress test: thin morphology cover, an expired
+    competency, part-time constraints and leave, so every kind of warning appears.
+    ``balanced`` is a well-staffed department that should come out with few or no
+    critical problems.
+    """
+    balanced = flavour == "balanced"
     workbook = Workbook()
     today = date.today()
     first = date(today.year + (today.month == 12), (today.month % 12) + 1, 1)
     last = (date(first.year + (first.month == 12), (first.month % 12) + 1, 1)
             - timedelta(days=1))
 
-    _instructions_sheet(workbook, is_demo=True)
-    _details_sheet(workbook, first, last, is_demo=True)
+    _instructions_sheet(workbook, is_demo=True, balanced=balanced)
+    _details_sheet(workbook, first, last, is_demo=True, balanced=balanced)
     _rules_sheet(workbook)
 
+    label = ("BALANCED EXAMPLE" if balanced else "CHALLENGING EXAMPLE")
     sheet, header_row = _sheet(
         workbook, "Staff", STAFF_HEADERS, STAFF_WIDTHS,
-        note="EXAMPLE DATA — every person below is fictional. Replace with your "
-             "own staff before using this for real planning.")
-    _write_rows(sheet, header_row, _demo_staff(first))
+        note=f"{label} — every person below is fictional. Replace with your own "
+             f"staff before using this for real planning.")
+    _write_rows(sheet, header_row,
+                _balanced_staff() if balanced else _demo_staff(first))
     _yes_no(sheet, header_row, [5, 6, 7, 8, *range(13, 20), 24, 25])
 
     sheet, header_row = _sheet(
         workbook, "Competencies", COMPETENCY_HEADERS, COMPETENCY_WIDTHS,
-        note="EXAMPLE DATA — fictional competencies. Only Competent, Trainer and "
-             "Assessor count as coverage.")
-    _write_rows(sheet, header_row, _demo_competencies(first))
+        note=f"{label} — fictional competencies. Only Competent, Trainer and "
+             f"Assessor count as coverage.")
+    _write_rows(sheet, header_row,
+                _balanced_competencies(first) if balanced
+                else _demo_competencies(first))
     _list_validation(sheet, header_row, 5, CompetencyStatus.ALL)
     _yes_no(sheet, header_row, [9, 10, 11])
 
-    sheet, header_row = _sheet(workbook, "Week Patterns", PATTERN_HEADERS,
-                               PATTERN_WIDTHS,
-                               note="EXAMPLE DATA — one fictional member of staff "
-                                    "on an alternating two-week pattern.")
-    _write_rows(sheet, header_row, _demo_patterns())
+    sheet, header_row = _sheet(
+        workbook, "Week Patterns", PATTERN_HEADERS, PATTERN_WIDTHS,
+        note=f"{label} — only needed for staff on alternating weeks.")
+    if not balanced:
+        _write_rows(sheet, header_row, _demo_patterns())
     _yes_no(sheet, header_row, list(range(3, 10)))
 
     sheet, header_row = _sheet(workbook, "Leave", LEAVE_HEADERS, LEAVE_WIDTHS,
-                               note="EXAMPLE DATA — fictional absence records.")
-    _write_rows(sheet, header_row, _demo_leave(first, last))
+                               note=f"{label} — fictional absence records.")
+    _write_rows(sheet, header_row,
+                _balanced_leave(first) if balanced else _demo_leave(first, last))
     _list_validation(sheet, header_row, 5,
                      [code for code, *_ in DEFAULT_LEAVE_TYPES])
 
-    _configuration_sheets(workbook)
+    _configuration_sheets(
+        workbook,
+        requirements=BALANCED_REQUIREMENTS if balanced else DEFAULT_REQUIREMENTS)
     workbook.save(path)

@@ -84,7 +84,14 @@ def cmd_generate(args) -> int:
           f"{dashboard['passed_count']} passed")
     print("This roster is a draft requiring managerial review.\n")
 
-    return _write(Path(args.out), result["workbook"])
+    out = Path(args.out)
+    scheduler, analysis = result["_scheduler"], result["_analysis"]
+    status = _write(out, api.export_workbook(scheduler, analysis, "manager"))
+    if status == 0 and args.staff_rota:
+        staff_path = out.with_name(out.stem + "-staff-rota" + out.suffix)
+        status = _write(staff_path,
+                        api.export_workbook(scheduler, analysis, "staff"))
+    return status
 
 
 def main(argv=None) -> int:
@@ -118,6 +125,8 @@ def main(argv=None) -> int:
     generate.add_argument("--end", help="override the period end (yyyy-mm-dd)")
     generate.add_argument("--variation", type=int,
                           help="different draft from the same information")
+    generate.add_argument("--staff-rota", action="store_true",
+                          help="also write the simplified staff rota")
     generate.set_defaults(func=cmd_generate)
 
     args = parser.parse_args(argv)

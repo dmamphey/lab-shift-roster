@@ -108,9 +108,33 @@ def _landscape(sheet, fit_width=1):
 
 # --------------------------------------------------------------------------
 
-def write_workbook(scheduler: Scheduler, analysis: Analysis, target) -> None:
+MANAGER = "manager"
+STAFF = "staff"
+
+
+def write_workbook(scheduler: Scheduler, analysis: Analysis, target,
+                   audience: str = MANAGER) -> None:
+    """Write the exported workbook for a given audience.
+
+    The **manager report** keeps the full analytical output.  The **staff rota** is
+    deliberately reduced to what somebody needs in order to read their own rota:
+    who is working, when, and in which section.
+
+    Data minimisation is the point of the split, not tidiness.  A rota circulated
+    around a department must not disclose colleagues' competency records, private
+    working restrictions, individual hours, fairness calculations, workforce
+    vulnerabilities, or whether an absence is annual leave or sickness.
+    """
     workbook = Workbook()
     workbook.remove(workbook.active)
+
+    if audience == STAFF:
+        _roster(workbook, scheduler, analysis, audience=STAFF)
+        if scheduler.config.benches:
+            _staff_sections(workbook, scheduler, analysis)
+        _staff_notes(workbook, scheduler)
+        workbook.save(target)
+        return
 
     _instructions(workbook, scheduler, analysis)
     _roster(workbook, scheduler, analysis)
@@ -227,8 +251,14 @@ def _instructions(workbook, scheduler, analysis) -> None:
     cell.alignment = WRAP_LEFT
 
 
-def _roster(workbook, scheduler, analysis) -> None:
-    """The calendar grid: staff as rows, dates as columns."""
+def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
+    """The calendar grid: staff as rows, dates as columns.
+
+    For a staff audience the grid shows only who is working. Absence is rendered
+    the same as a non-working day, so circulating the rota does not disclose who is
+    on sick leave, and the role column is dropped.
+    """
+    staff_facing = audience == STAFF
     sheet = workbook.create_sheet("Roster")
     config = scheduler.config
     days = scheduler.days
@@ -237,10 +267,10 @@ def _roster(workbook, scheduler, analysis) -> None:
 
     sheet.sheet_view.showGridLines = False
     sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
+    heading = f"{config.details.heading}   |   "               f"{config.period.start:%d %b %Y} to {config.period.end:%d %b %Y}"
     title = sheet.cell(row=1, column=1,
-                       value=f"{config.details.heading}   |   "
-                             f"{config.period.start:%d %b %Y} to "
-                             f"{config.period.end:%d %b %Y}   |   DRAFT for review")
+                       value=heading if staff_facing
+                       else f"{heading}   |   DRAFT for review")
     title.fill = HEADER_FILL
     title.font = Font(bold=True, size=13, color="FFFFFF")
     title.alignment = LEFT
@@ -264,7 +294,8 @@ def _roster(workbook, scheduler, analysis) -> None:
         cell.alignment = CENTRE
         cell.border = BORDER
 
-    for column, label in ((1, "Staff"), (2, "Band"), (3, "Role")):
+    left_columns = ((1, "Staff"), (2, "Band")) if staff_facing         else ((1, "Staff"), (2, "Band"), (3, "Role"))
+    for column, label in left_columns:
         cell = sheet.cell(row=3, column=column, value=label)
         cell.fill = HEADER_FILL
         cell.font = WHITE_BOLD
@@ -319,7 +350,8 @@ def _roster(workbook, scheduler, analysis) -> None:
             name_cell.font = Font(bold=person.is_senior, size=10)
             name_cell.alignment = LEFT
             name_cell.border = BORDER
-            for column, value in ((2, person.band), (3, person.job_title)):
+            left_values = ((2, person.band),) if staff_facing                 else ((2, person.band), (3, person.job_title))
+            for column, value in left_values:
                 cell = sheet.cell(row=row, column=column, value=value)
                 cell.font = SMALL
                 cell.alignment = CENTRE if column == 2 else LEFT
@@ -338,7 +370,7 @@ def _roster(workbook, scheduler, analysis) -> None:
                     cell.font = shift_font.get(assignment.shift_code, BOLD)
                     continue
                 code = scheduler.leave.get((day, person.staff_id))
-                if code:
+                if code and not staff_facing:
                     entry = config.leave_types.get(
                         "".join(ch for ch in code.lower() if ch.isalnum()))
                     cell.value = code
@@ -347,6 +379,7 @@ def _roster(workbook, scheduler, analysis) -> None:
                     cell.font = Font(bold=True, size=9,
                                      color=entry.font_colour if entry else "000000")
                 elif scheduler.is_weekend(day):
+                    # Absence is left looking like any other non-working day.
                     cell.fill = WEEKEND_FILL
             row += 1
 
@@ -424,7 +457,7 @@ def _roster(workbook, scheduler, analysis) -> None:
         text.alignment = LEFT
         row += 1
     used_leave = {entry.code for entry in config.leave}
-    for entry in config.leave_types.values():
+    for entry in (() if staff_facing else config.leave_types.values()):
         if used_leave and entry.code not in used_leave:
             continue
         code = sheet.cell(row=row, column=1, value=entry.code)
@@ -435,15 +468,17 @@ def _roster(workbook, scheduler, analysis) -> None:
         sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=10)
         sheet.cell(row=row, column=2, value=entry.label).font = SMALL
         row += 1
-    sheet.cell(row=row, column=1, value="*").font = BOLD
-    sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=10)
-    sheet.cell(row=row, column=2,
-               value="Manually adjusted by a manager").font = SMALL
-    row += 1
+    if not staff_facing:
+        sheet.cell(row=row, column=1, value="*").font = BOLD
+        sheet.merge_cells(start_row=row, start_column=2, end_row=row,
+                          end_column=10)
+        sheet.cell(row=row, column=2,
+                   value="Manually adjusted by a manager").font = SMALL
+        row += 1
     sheet.cell(row=row, column=1, value="—").font = BOLD
     sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=10)
     sheet.cell(row=row, column=2,
-               value="A blank cell means not working. Shaded columns are "
+               value="A blank cell means not scheduled. Shaded columns are "
                      "weekends.").font = SMALL
 
     sheet.freeze_panes = sheet.cell(row=5, column=first_col).coordinate
@@ -480,6 +515,86 @@ def _initials(staff) -> dict[str, str]:
                 index += 1
             final[staff_id] = extended
     return final
+
+
+def _staff_sections(workbook, scheduler, analysis) -> None:
+    """Which section each person is on, day by day — no coverage judgements.
+
+    Staff need to know where to go. They do not need the manager's assessment of
+    whether the section was adequately covered, so the Required / Allocated /
+    Status columns of the manager version are left out.
+    """
+    sheet = workbook.create_sheet("Section Allocations")
+    row = _title(sheet, "Section allocations", 5,
+                 "Where each person is working. Check with your manager if "
+                 "anything looks wrong.")
+    row = _headers(sheet, row,
+                   ["Date", "Day", "Shift", "Section", "Staff"],
+                   [12, 6, 16, 24, 52])
+    config = scheduler.config
+    for day in scheduler.days:
+        for shift in config.shifts:
+            if not shift.applies_on(day, scheduler.rules.weekend_days):
+                continue
+            for bench in scheduler.benches_for(day, shift):
+                allocated = scheduler.bench_staff(day, bench.name, shift.code)
+                if not allocated:
+                    continue
+                row = _row(sheet, row, [
+                    day, WEEKDAY_SHORT[day.weekday()], shift.name, bench.name,
+                    ", ".join(analysis.name_of(sid) for sid in allocated),
+                ])
+    _landscape(sheet)
+
+
+def _staff_notes(workbook, scheduler) -> None:
+    """A short cover note so a circulated rota explains itself."""
+    sheet = workbook.create_sheet("Notes")
+    config = scheduler.config
+    details = config.details
+    row = _title(sheet, "About this rota", 6)
+    sheet.column_dimensions["A"].width = 26
+    sheet.column_dimensions["B"].width = 70
+
+    for label, value in [
+        ("Rota", details.rota_name),
+        ("Organisation", details.organisation or "—"),
+        ("Department", details.department or "—"),
+        ("Site", details.site or "—"),
+        ("Period", f"{config.period.start:%d %b %Y} to "
+                   f"{config.period.end:%d %b %Y}"),
+        ("Issued", f"{date.today():%d %b %Y}"),
+    ]:
+        sheet.cell(row=row, column=1, value=label).font = BOLD
+        sheet.cell(row=row, column=2, value=value).font = SMALL
+        row += 1
+
+    row += 1
+    sheet.cell(row=row, column=1, value="Shifts").font = Font(
+        bold=True, size=12, color="1F3864")
+    row += 1
+    for shift in config.shifts:
+        code = sheet.cell(row=row, column=1, value=shift.code)
+        code.fill = PatternFill("solid", fgColor=shift.colour)
+        code.font = Font(bold=True, size=10, color=shift.font_colour)
+        code.alignment = CENTRE
+        code.border = BORDER
+        sheet.cell(row=row, column=2,
+                   value=f"{shift.name} · {shift.times_label} · "
+                         f"{shift.hours:g} hours").font = SMALL
+        row += 1
+
+    row += 1
+    for line in [
+        "A blank cell means you are not scheduled to work that day.",
+        "Please raise any queries about your own rota with your line manager.",
+        "This rota may be adjusted; check for a later version before relying on it.",
+    ]:
+        cell = sheet.cell(row=row, column=1, value=line)
+        cell.font = SMALL
+        cell.alignment = WRAP_LEFT
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+        row += 1
 
 
 def _staff(workbook, scheduler, analysis) -> None:

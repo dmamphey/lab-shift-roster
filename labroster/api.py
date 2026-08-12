@@ -1,10 +1,11 @@
 """One entry point, used by both the browser and the command line.
 
 The browser calls :func:`generate` with the bytes of an uploaded workbook and
-gets back a plain dictionary: the dashboard, the issues, a roster grid it can
-draw, and the bytes of the exported workbook.  Nothing in here touches the
-network or the filesystem, which is what keeps the workforce data on the user's
-own device.
+gets back a plain dictionary: the dashboard, the issues and a roster grid it can
+draw.  The workbooks are written separately by :func:`export_workbook`, so one
+generated draft can produce both a staff rota and a manager report.  Nothing in
+here touches the network or the filesystem, which is what keeps the workforce data
+on the user's own device.
 """
 
 from __future__ import annotations
@@ -13,10 +14,11 @@ import io
 from datetime import date, datetime
 
 from .analysis import CRITICAL, PASSED, REVIEW, Analysis
-from .export import write_workbook
+from .export import MANAGER, STAFF, write_workbook
 from .models import Config
 from .scheduler import Assignment, Scheduler
-from .template import build_blank_template, build_demo_workbook
+from .template import (build_balanced_workbook, build_blank_template,
+                       build_demo_workbook)
 from .workbook import ERROR, Problem, WorkbookError, read_workbook
 
 
@@ -42,8 +44,16 @@ def blank_template_bytes() -> bytes:
 
 
 def demo_workbook_bytes() -> bytes:
+    """The challenging example: deliberately hard, to show what is detected."""
     buffer = io.BytesIO()
     build_demo_workbook(buffer)
+    return buffer.getvalue()
+
+
+def balanced_workbook_bytes() -> bytes:
+    """The balanced example: a well-staffed department producing a strong draft."""
+    buffer = io.BytesIO()
+    build_balanced_workbook(buffer)
     return buffer.getvalue()
 
 
@@ -183,6 +193,19 @@ def _details_payload(config: Config) -> dict:
     }
 
 
+def export_workbook(scheduler: Scheduler, analysis: Analysis,
+                    audience: str = "manager") -> bytes:
+    """Write one of the two workbooks from an already-generated roster.
+
+    Kept separate from :func:`generate` so a manager can produce both the staff
+    rota and the manager report from a single draft, without rescheduling and
+    without losing any manual adjustments.
+    """
+    buffer = io.BytesIO()
+    write_workbook(scheduler, analysis, buffer, audience=audience)
+    return buffer.getvalue()
+
+
 def generate(data: bytes, start: str | None = None, end: str | None = None,
              alternative: int | None = None,
              manual: list[dict] | None = None) -> dict:
@@ -231,11 +254,10 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
     scheduler.build()
     analysis = Analysis(scheduler)
 
-    buffer = io.BytesIO()
-    write_workbook(scheduler, analysis, buffer)
-
     return {
         "ok": True,
+        "_scheduler": scheduler,
+        "_analysis": analysis,
         "problems": _problem_payload(problems),
         "details": _details_payload(config),
         "generation_id": config.rules.seed,
@@ -254,6 +276,5 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
                       "expiry": item["expiry"].isoformat() if item["expiry"] else None,
                       "days": item["days"], "state": item["state"]}
                      for item in analysis.expiring],
-        "workbook": buffer.getvalue(),
         "severities": {"critical": CRITICAL, "review": REVIEW, "passed": PASSED},
     }

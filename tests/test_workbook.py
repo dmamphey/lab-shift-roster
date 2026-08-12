@@ -97,7 +97,8 @@ def test_the_demo_workbook_is_labelled_as_fictional(demo_bytes):
 def test_the_demo_workbook_generates_a_roster(demo_result):
     assert demo_result["ok"], demo_result.get("fatal")
     assert demo_result["dashboard"]["total_assignments"] > 0
-    assert demo_result["workbook"][:2] == b"PK"
+    assert api.export_workbook(demo_result["_scheduler"],
+                               demo_result["_analysis"])[:2] == b"PK"
 
 
 def test_the_demo_reads_without_blocking_errors(demo_bytes):
@@ -151,7 +152,8 @@ def test_nobody_in_the_demo_is_rostered_while_on_leave(demo_result):
 
 
 def test_the_exported_workbook_has_the_expected_sheets(demo_result):
-    workbook = load_workbook(io.BytesIO(demo_result["workbook"]))
+    workbook = load_workbook(io.BytesIO(api.export_workbook(
+        demo_result["_scheduler"], demo_result["_analysis"], "manager")))
     for name in ["Instructions", "Roster", "Staff", "Competencies",
                  "Shift Requirements", "Bench Allocations", "Issues",
                  "Hours Summary", "Fairness Summary", "Competency Expiry"]:
@@ -159,7 +161,8 @@ def test_the_exported_workbook_has_the_expected_sheets(demo_result):
 
 
 def test_the_exported_roster_is_marked_as_a_draft(demo_result):
-    workbook = load_workbook(io.BytesIO(demo_result["workbook"]))
+    workbook = load_workbook(io.BytesIO(api.export_workbook(
+        demo_result["_scheduler"], demo_result["_analysis"], "manager")))
     text = " ".join(str(cell.value) for row in workbook["Roster"].iter_rows()
                     for cell in row if cell.value is not None).lower()
     assert "draft" in text
@@ -343,3 +346,99 @@ def test_an_unknown_discipline_on_the_benches_sheet_is_a_warning_not_an_error():
     result = api.generate(data)
     assert result["ok"], "an uncoverable bench should warn, not block generation"
     assert any("NOSUCH" in p["message"] for p in result["problems"])
+
+
+# --------------------------------------------------------------------------
+# the two export audiences
+# --------------------------------------------------------------------------
+
+def _exports(demo_result):
+    scheduler = demo_result["_scheduler"]
+    analysis = demo_result["_analysis"]
+    return (api.export_workbook(scheduler, analysis, "staff"),
+            api.export_workbook(scheduler, analysis, "manager"))
+
+
+def _all_text(data):
+    workbook = load_workbook(io.BytesIO(data))
+    return " ".join(str(cell.value) for name in workbook.sheetnames
+                    for row in workbook[name].iter_rows()
+                    for cell in row if cell.value is not None)
+
+
+def test_the_staff_rota_contains_only_what_staff_need(demo_result):
+    staff, _ = _exports(demo_result)
+    workbook = load_workbook(io.BytesIO(staff))
+    assert workbook.sheetnames == ["Roster", "Section Allocations", "Notes"]
+
+
+def test_the_manager_report_keeps_the_full_analysis(demo_result):
+    _, manager = _exports(demo_result)
+    workbook = load_workbook(io.BytesIO(manager))
+    for name in ["Instructions", "Roster", "Staff", "Competencies",
+                 "Shift Requirements", "Bench Allocations", "Issues",
+                 "Hours Summary", "Fairness Summary", "Competency Expiry"]:
+        assert name in workbook.sheetnames
+
+
+def test_the_staff_rota_does_not_disclose_management_information(demo_result):
+    """Data minimisation: a circulated rota must not leak these."""
+    staff, _ = _exports(demo_result)
+    text = _all_text(staff).lower()
+    for forbidden in ["competent", "in training", "expired", "variance",
+                      "fairness", "single point", "resilience", "restrictions",
+                      "target hours", "authoriser", "trainee"]:
+        assert forbidden not in text, \
+            f"the staff rota discloses '{forbidden}'"
+
+
+def test_the_staff_rota_does_not_reveal_why_somebody_is_absent(demo_result):
+    """Showing S/L on a departmental rota would disclose sickness."""
+    staff, _ = _exports(demo_result)
+    text = _all_text(staff)
+    for code in ["S/L", "A/L", "M/L", "C/L", "S/D"]:
+        assert code not in text, f"absence code '{code}' appears in the staff rota"
+
+
+def test_the_manager_report_does_still_show_absence_codes(demo_result):
+    _, manager = _exports(demo_result)
+    assert "A/L" in _all_text(manager)
+
+
+def test_the_staff_rota_still_shows_who_is_working(demo_result):
+    staff, _ = _exports(demo_result)
+    workbook = load_workbook(io.BytesIO(staff))
+    sheet = workbook["Roster"]
+    codes = {str(cell.value) for row in sheet.iter_rows(min_row=5)
+             for cell in row if cell.value in ("C", "E", "L", "N", "W")}
+    assert codes, "the staff rota should still show shift assignments"
+
+
+def test_the_staff_rota_carries_the_organisation_and_period(demo_result):
+    staff, _ = _exports(demo_result)
+    text = _all_text(staff)
+    assert "Example NHS Trust" in text
+    assert "Blood Sciences" in text
+    assert "Period" in text
+
+
+def test_the_staff_rota_is_not_labelled_a_draft_for_review(demo_result):
+    """The manager reviews the draft; staff receive the agreed rota."""
+    staff, manager = _exports(demo_result)
+    assert "DRAFT for review" not in _all_text(staff)
+    assert "DRAFT for review" in _all_text(manager)
+
+
+def test_both_exports_come_from_one_generated_draft(demo_result):
+    """Exporting twice must not reschedule, or manual changes would be lost."""
+    scheduler = demo_result["_scheduler"]
+    before = dict(scheduler.assignments)
+    api.export_workbook(scheduler, demo_result["_analysis"], "staff")
+    api.export_workbook(scheduler, demo_result["_analysis"], "manager")
+    assert dict(scheduler.assignments) == before
+
+
+def test_both_exports_open_as_valid_workbooks(demo_result):
+    for data in _exports(demo_result):
+        assert data[:2] == b"PK"
+        load_workbook(io.BytesIO(data))

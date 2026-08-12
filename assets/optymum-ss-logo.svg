@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 210" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 165" role="img"
      aria-labelledby="oss-title">
   <title id="oss-title">Optymum SS — Chartered Scientists</title>
   <!--
     Recreation of the Optymum SS wordmark for use inside LabRoster.
     The diamond motifs are exact paths; the lettering is set in a heavy geometric
     face rather than traced outlines, so it is close to but not identical to the
-    original artwork. To use the original instead, replace this file, keeping the
-    same name and a similar aspect ratio.
+    original artwork. To use the original, replace this file keeping the same name
+    and a similar aspect ratio (roughly 6:1).
 
     Brand colours:
       #1878C4  primary blue  (wordmark, diamonds)
@@ -14,21 +14,20 @@
   -->
   <g fill="#1878C4">
     <!-- left: solid diamond, then outline diamond -->
-    <path d="M44 60 L76 92 L44 124 L12 92 Z"/>
-    <path d="M116 60 L148 92 L116 124 L84 92 Z
-             M116 76 L100 92 L116 108 L132 92 Z" fill-rule="evenodd"/>
+    <path d="M40 52 L69 81 L40 110 L11 81 Z"/>
+    <path d="M104 55 L130 81 L104 107 L78 81 Z
+             M104 69 L92 81 L104 93 L116 81 Z" fill-rule="evenodd"/>
     <!-- right: outline diamond, then solid diamond -->
-    <path d="M844 60 L876 92 L844 124 L812 92 Z
-             M844 76 L828 92 L844 108 L860 92 Z" fill-rule="evenodd"/>
-    <path d="M916 60 L948 92 L916 124 L884 92 Z"/>
+    <path d="M856 55 L882 81 L856 107 L830 81 Z
+             M856 69 L844 81 L856 93 L868 81 Z" fill-rule="evenodd"/>
+    <path d="M920 52 L949 81 L920 110 L891 81 Z"/>
   </g>
 
-  <!-- Wordmark sized to sit clear of the diamonds on both sides. -->
-  <text x="480" y="120" text-anchor="middle" fill="#1878C4"
+  <text x="480" y="106" text-anchor="middle" fill="#1878C4"
         font-family="'Arial Black','Arial Bold',Impact,'Helvetica Neue',system-ui,sans-serif"
-        font-size="82" font-weight="900" letter-spacing="1">OPTYMVM SS</text>
+        font-size="86" font-weight="900" letter-spacing="1">OPTYMVM SS</text>
 
-  <text x="480" y="180" text-anchor="middle" fill="#17395F"
+  <text x="480" y="152" text-anchor="middle" fill="#17395F"
         font-family="'Arial Black','Arial Bold',Impact,'Helvetica Neue',system-ui,sans-serif"
-        font-size="42" font-weight="900" letter-spacing="2">CHARTERED SCIENTISTS</text>
+        font-size="38" font-weight="900" letter-spacing="4">CHARTERED SCIENTISTS</text>
 </svg>

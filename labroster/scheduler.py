@@ -527,16 +527,39 @@ class Scheduler:
                   sum(1 for sid in present if self.by_id[sid].shift_coordinator),
                   "coordinator", "shift coordinator")
 
-        # Competency demands need *distinct* people, one per bench, so this is a
-        # matching rather than a count of who happens to hold the competency.
-        demand = self.competency_demand(day, shift, requirement)
-        if demand:
-            _, unmatched = self.match_distinct(day, present, demand)
+        # Two different kinds of competency requirement, checked differently.
+        #
+        # A *section* needs somebody standing at it, so three sections need three
+        # distinct people even if one person holds all three competencies.
+        #
+        # A shift's own competency list is not about stations: "BT:1, HAEM:1" on a
+        # single-handed night shift means one person competent in both, and asking
+        # for two distinct people there could never be satisfied.
+        bench_demand: Counter[str] = Counter()
+        for bench in self.benches_for(day, shift):
+            wanted = bench.required_on(day, self.rules.weekend_days)
+            if wanted:
+                bench_demand[bench.discipline.upper()] += wanted
+        if bench_demand:
+            _, unmatched = self.match_distinct(day, present, dict(bench_demand))
             for discipline in dict.fromkeys(unmatched):
                 needs.append({
                     "kind": "competency",
                     "label": f"{discipline}-competent staff",
                     "missing": unmatched.count(discipline),
+                    "discipline": discipline})
+
+        for discipline, wanted in requirement.required_competencies.items():
+            discipline = discipline.upper()
+            if bench_demand.get(discipline, 0) >= wanted:
+                continue                      # already covered by the section check
+            have = sum(1 for sid in present
+                       if self._competent(sid, discipline, day))
+            if have < wanted:
+                needs.append({
+                    "kind": "competency",
+                    "label": f"{discipline}-competent staff",
+                    "missing": wanted - have,
                     "discipline": discipline})
 
         # Authorising results does not occupy a bench, so authorisers are matched

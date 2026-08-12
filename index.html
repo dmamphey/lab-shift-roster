@@ -313,13 +313,20 @@
 
 <section class="panel" aria-labelledby="get-heading">
   <h2 id="get-heading">1 &middot; Get a workbook</h2>
-  <p class="hint">The blank template has the headings, guidance and dropdown
-     lists but no staff. The example laboratory is a complete fictional
-     department you can generate a roster from straight away, to see what
-     LabRoster produces.</p>
+  <p class="hint">The blank workbook has the headings, guidance and dropdown
+     lists but no staff. Both examples are complete fictional departments you can
+     generate a roster from straight away.</p>
+  <ul class="hint" style="margin:0 0 1rem;padding-left:1.2rem">
+    <li><strong>Balanced example</strong> — a well-staffed department. Shows what
+        LabRoster produces when a workforce comfortably covers its requirements.</li>
+    <li><strong>Challenging example</strong> — deliberately contains staffing,
+        competency, leave and availability constraints so you can see how
+        LabRoster identifies problems. It is not typical.</li>
+  </ul>
   <div class="actions">
     <button id="btn-blank" class="secondary" disabled>Download blank workbook</button>
-    <button id="btn-demo" class="secondary" disabled>Download example laboratory</button>
+    <button id="btn-balanced" class="secondary" disabled>Download balanced example</button>
+    <button id="btn-demo" class="secondary" disabled>Download challenging example</button>
   </div>
 </section>
 
@@ -337,7 +344,8 @@
 
   <div class="actions">
     <button id="btn-generate" disabled>Generate draft roster</button>
-    <button id="btn-try" class="secondary" disabled>Try the example laboratory</button>
+    <button id="btn-try" class="secondary" disabled>Try the balanced example</button>
+    <button id="btn-try-hard" class="secondary" disabled>Try the challenging example</button>
   </div>
 
   <details class="advanced">
@@ -396,12 +404,19 @@
      to review. LabRoster supports your decisions about staffing; it does not make
      them.</p>
   <div class="actions" style="margin-top:1rem">
-    <button id="btn-export">Export to Excel</button>
+    <button id="btn-export-staff">Export staff rota</button>
+    <button id="btn-export-manager">Export manager report</button>
     <button id="btn-alt" class="secondary">Generate alternative roster</button>
     <button id="btn-reset" class="secondary">Start new roster</button>
     <a href="#issues-heading" class="hint" style="margin-left:.3rem">View issues</a>
   </div>
-  <p class="hint" id="generation-note" style="margin:.75rem 0 0"></p>
+  <p class="hint" style="margin:.75rem 0 0">
+     The <strong>staff rota</strong> is a simplified workbook for circulating to
+     the team: who is working, when, and in which section. It deliberately leaves
+     out competency records, individual hours, fairness analysis, workforce
+     vulnerabilities and the reason for anybody's absence. The
+     <strong>manager report</strong> keeps the full analysis.</p>
+  <p class="hint" id="generation-note" style="margin:.5rem 0 0"></p>
 </section>
 
 <section class="panel" aria-labelledby="issues-heading">
@@ -567,14 +582,29 @@ def _blank():
 def _demo():
     Path("/demo.xlsx").write_bytes(api.demo_workbook_bytes())
 
+def _balanced():
+    Path("/balanced.xlsx").write_bytes(api.balanced_workbook_bytes())
+
+_STATE = {}
+
 def _generate(source, start, end, alternative):
     data = Path(source).read_bytes()
     result = api.generate(data, start=start or None, end=end or None,
                           alternative=alternative)
-    workbook = result.pop("workbook", None)
-    if workbook:
-        Path("/roster.xlsx").write_bytes(workbook)
+    # Keep the built roster so either workbook can be exported later without
+    # rescheduling, which would otherwise discard manual adjustments.
+    _STATE["scheduler"] = result.pop("_scheduler", None)
+    _STATE["analysis"] = result.pop("_analysis", None)
     return json.dumps(result)
+
+def _export(audience):
+    scheduler, analysis = _STATE.get("scheduler"), _STATE.get("analysis")
+    if scheduler is None:
+        return ""
+    name = "staff-rota" if audience == "staff" else "manager-report"
+    path = f"/{name}.xlsx"
+    Path(path).write_bytes(api.export_workbook(scheduler, analysis, audience))
+    return path
 `;
 
 let pyodide = null;
@@ -582,6 +612,7 @@ let latest = null;
 let currentTab = "CRITICAL";
 let product = null;
 let hasManualChanges = false;
+let lastSource = "/balanced.xlsx";
 
 /* Which internal generation IDs have already been used, so "Generate
    alternative roster" reliably produces something different each time. */
@@ -603,11 +634,13 @@ function setStatus(text, busy) {
 }
 
 function enable(on) {
-  for (const id of ["btn-blank", "btn-demo", "file", "btn-generate", "btn-try"]) {
+  for (const id of ["btn-blank", "btn-demo", "btn-balanced", "file",
+                    "btn-generate", "btn-try", "btn-try-hard"]) {
     $(id).disabled = !on;
   }
   // The post-generation controls only make sense once a draft exists.
-  for (const id of ["btn-alt", "btn-reset", "btn-export"]) {
+  for (const id of ["btn-alt", "btn-reset", "btn-export-staff",
+                    "btn-export-manager"]) {
     $(id).disabled = !(on && latest);
   }
 }
@@ -647,7 +680,9 @@ function resetApplication() {
   // The uploaded workbook itself.
   $("file").value = "";
   try { pyodide.FS.unlink("/upload.xlsx"); } catch (ignored) { /* not there */ }
-  try { pyodide.FS.unlink("/roster.xlsx"); } catch (ignored) { /* not there */ }
+  for (const name of ["/manager-report.xlsx", "/staff-rota.xlsx"]) {
+    try { pyodide.FS.unlink(name); } catch (ignored) { /* not there */ }
+  }
 
   // Configuration a manager would expect to persist stays: the date overrides
   // and the generation ID are settings, not results.
@@ -761,18 +796,26 @@ function friendly(error) {
 
 /* ------------------------------------------------------------ templates */
 
+const TEMPLATES = {
+  blank: { call: "_blank()", path: "/blank.xlsx",
+           file: "LabRoster-blank-workbook.xlsx", label: "blank workbook" },
+  balanced: { call: "_balanced()", path: "/balanced.xlsx",
+              file: "LabRoster-balanced-example.xlsx",
+              label: "balanced example laboratory" },
+  demo: { call: "_demo()", path: "/demo.xlsx",
+          file: "LabRoster-challenging-example.xlsx",
+          label: "challenging example laboratory" },
+};
+
 async function writeTemplate(kind) {
   clearProblems();
-  setStatus(kind === "blank" ? "Preparing the blank template…"
-                             : "Preparing the example laboratory…", true);
+  const spec = TEMPLATES[kind];
+  setStatus(`Preparing the ${spec.label}…`, true);
   try {
-    await pyodide.runPythonAsync(kind === "blank" ? "_blank()" : "_demo()");
-    const path = kind === "blank" ? "/blank.xlsx" : "/demo.xlsx";
-    const name = kind === "blank" ? "LabRoster-blank-template.xlsx"
-                                  : "LabRoster-example-laboratory.xlsx";
-    download(pyodide.FS.readFile(path), name);
-    setStatus(kind === "blank" ? "Blank template downloaded"
-                               : "Example laboratory downloaded", false);
+    await pyodide.runPythonAsync(spec.call);
+    download(pyodide.FS.readFile(spec.path), spec.file);
+    setStatus(`${spec.label.charAt(0).toUpperCase()}${spec.label.slice(1)} `
+              + `downloaded`, false);
   } catch (error) {
     setStatus("LabRoster ready", false);
     showProblems("That did not work.", [{ message: friendly(error) }]);
@@ -782,6 +825,7 @@ async function writeTemplate(kind) {
 /* ------------------------------------------------------------- generate */
 
 async function generate(source) {
+  lastSource = source;
   clearProblems();
   $("results").classList.add("hidden");
   enable(false);
@@ -801,7 +845,6 @@ async function generate(source) {
       return;
     }
     latest = result;
-    latest.bytes = pyodide.FS.readFile("/roster.xlsx");
     hasManualChanges = false;
     if (result.generation_id) usedGenerationIds.add(Number(result.generation_id));
     render(result);
@@ -1126,6 +1169,7 @@ function renderResilience(result) {
 /* ---------------------------------------------------------------- events */
 
 $("btn-blank").addEventListener("click", () => writeTemplate("blank"));
+$("btn-balanced").addEventListener("click", () => writeTemplate("balanced"));
 $("btn-demo").addEventListener("click", () => writeTemplate("demo"));
 
 $("btn-generate").addEventListener("click", async () => {
@@ -1142,11 +1186,15 @@ $("btn-generate").addEventListener("click", async () => {
   await generate("/upload.xlsx");
 });
 
-$("btn-try").addEventListener("click", async () => {
-  setStatus("Preparing the example laboratory…", true);
-  await pyodide.runPythonAsync("_demo()");
-  await generate("/demo.xlsx");
-});
+async function tryExample(kind) {
+  const spec = TEMPLATES[kind];
+  setStatus(`Preparing the ${spec.label}…`, true);
+  await pyodide.runPythonAsync(spec.call);
+  await generate(spec.path);
+}
+
+$("btn-try").addEventListener("click", () => tryExample("balanced"));
+$("btn-try-hard").addEventListener("click", () => tryExample("demo"));
 
 $("btn-alt").addEventListener("click", async () => {
   if (hasManualChanges && !window.confirm(
@@ -1157,8 +1205,7 @@ $("btn-alt").addEventListener("click", async () => {
   // A different internal generation ID, chosen for the manager rather than
   // typed in by them.
   $("alt").value = nextGenerationId();
-  const source = $("file").files[0] ? "/upload.xlsx" : "/demo.xlsx";
-  if (source === "/demo.xlsx") await pyodide.runPythonAsync("_demo()");
+  const source = $("file").files[0] ? "/upload.xlsx" : lastSource;
   await generate(source);
 });
 
@@ -1170,11 +1217,30 @@ $("btn-reset").addEventListener("click", () => {
   if (window.confirm(message)) resetApplication();
 });
 
-$("btn-export").addEventListener("click", () => {
-  if (latest && latest.bytes) {
-    download(latest.bytes, `LabRoster-draft-${stamp()}.xlsx`);
+async function exportWorkbook(audience) {
+  const label = audience === "staff" ? "staff rota" : "manager report";
+  setStatus(`Preparing the ${label}…`, true);
+  try {
+    const call = pyodide.globals.get("_export");
+    const path = call(audience);
+    call.destroy();
+    if (!path) throw new Error("Generate a roster first.");
+    const name = audience === "staff"
+      ? `LabRoster-staff-rota-${stamp()}.xlsx`
+      : `LabRoster-manager-report-${stamp()}.xlsx`;
+    download(pyodide.FS.readFile(path), name);
+    setStatus(`${label.charAt(0).toUpperCase()}${label.slice(1)} downloaded`,
+              false);
+  } catch (error) {
+    setStatus("LabRoster ready", false);
+    showProblems("That export did not work.",
+                 [{ message: friendly(error) }]);
   }
-});
+}
+
+$("btn-export-staff").addEventListener("click", () => exportWorkbook("staff"));
+$("btn-export-manager").addEventListener("click",
+                                        () => exportWorkbook("manager"));
 
 for (const key of ["CRITICAL", "REVIEW", "PASSED"]) {
   $(`tab-${key}`).addEventListener("click", () => {
