@@ -197,6 +197,7 @@ class Staff:
     working_pattern: str = ""
     max_period_hours: float = 0.0         # 0 = no hard ceiling, fairness governs
     min_period_hours: float = 0.0         # 0 = derive from contracted hours
+    max_weekly_hours: float = 0.0         # 0 = no weekly ceiling
 
     availability: Availability = field(default_factory=Availability)
     nights_ok: bool = True
@@ -211,7 +212,8 @@ class Staff:
 
     # Filled in by the scheduler / reporting layer.
     target_period_hours: float = 0.0
-    allocated_hours: float = 0.0
+    allocated_hours: float = 0.0          # hours actually worked on shifts
+    credited_absence_hours: float = 0.0   # hours credited for absence
 
     @property
     def band_value(self) -> float:
@@ -226,15 +228,48 @@ class Staff:
         return value
 
     @property
+    def total_accounted_hours(self) -> float:
+        """Worked hours plus hours credited for absence.
+
+        This is what workload balancing compares, so a week of annual leave
+        counts towards somebody's contracted hours instead of leaving a deficit
+        the roster would try to fill with extra shifts.
+        """
+        return round(self.allocated_hours + self.credited_absence_hours, 2)
+
+    @property
     def hours_variance(self) -> float:
-        """Allocated minus target.  Negative means under-used."""
-        return round(self.allocated_hours - self.target_period_hours, 2)
+        """Total accounted hours minus target.  Negative means under-used."""
+        return round(self.total_accounted_hours - self.target_period_hours, 2)
 
     @property
     def percent_of_target(self) -> float | None:
         if not self.target_period_hours:
             return None
-        return round(100.0 * self.allocated_hours / self.target_period_hours, 1)
+        return round(100.0 * self.total_accounted_hours
+                     / self.target_period_hours, 1)
+
+    @property
+    def working_days_per_week(self) -> int:
+        """How many days a week this person normally works.
+
+        Taken from the working pattern where one is set, averaged across the
+        cycle; otherwise inferred from contracted hours against a standard day.
+        """
+        pattern = self.availability.weekdays
+        if pattern:
+            counts = [len(days) for days in pattern.values() if days]
+            if counts:
+                return max(1, round(sum(counts) / len(counts)))
+        if self.contracted_weekly_hours:
+            return max(1, min(7, round(self.contracted_weekly_hours / 7.5)))
+        return 5
+
+    @property
+    def normal_daily_hours(self) -> float:
+        """Hours in one of this person's normal working days."""
+        weekly = self.contracted_weekly_hours or (37.5 * (self.fte or 1.0))
+        return round(weekly / self.working_days_per_week, 4)
 
     def meets_band(self, threshold: float) -> bool:
         return self.band_value >= threshold
@@ -367,15 +402,40 @@ class LeaveEntry:
     end: date
     code: str
     reason: str = ""
+    credited_hours: float | None = None
+    """Hours credited for the whole absence, when a manager wants to state it
+    explicitly rather than have it derived from the working pattern."""
+
+
+#: How the hours credited for a day of absence are worked out.
+CREDIT_FROM_PATTERN = "Working pattern"
+CREDIT_FIXED = "Fixed hours per day"
+CREDIT_NONE = "Not credited"
+CREDIT_METHODS = [CREDIT_FROM_PATTERN, CREDIT_FIXED, CREDIT_NONE]
 
 
 @dataclass
 class LeaveType:
+    """A kind of absence, and how it is treated for contracted hours.
+
+    ``credits_hours`` is what stops the roster trying to claw back hours somebody
+    was away for.  If a week of annual leave is credited, that person's accounted
+    hours already reach their contracted target, so the scheduler has no deficit
+    to close and will not hand them extra shifts to make up the difference.
+
+    This is a planning setting, not a statement of HR or pay policy.  Different
+    organisations treat sickness and long-term absence differently, so the
+    behaviour is configured per leave type rather than assumed.
+    """
+
     code: str
     label: str
     colour: str = "FFFF00"
     font_colour: str = "000000"
     counts_as_absence: bool = True
+    credits_hours: bool = True
+    credited_method: str = CREDIT_FROM_PATTERN
+    fixed_daily_hours: float = 0.0
 
 
 # --------------------------------------------------------------------------
@@ -408,7 +468,11 @@ class Rules:
     throughout the application reflects that.
     """
 
-    senior_band: float = 6.0
+    # Seniority is recorded explicitly against each member of staff, on the Staff
+    # sheet.  There is deliberately no band threshold here: a band is about pay
+    # and responsibility, and inferring "senior" from it silently overrides what a
+    # manager actually recorded.  Shifts that need a particular grade use the
+    # separate Min Band requirement instead.
     minimum_rest_hours: float = 11.0
     max_consecutive_days: int = 6
     max_consecutive_nights: int = 4
@@ -535,6 +599,45 @@ class Config:
         specific = [r for r in matches
                     if re.sub(r"[^a-z]", "", r.days.lower()) not in ("", "all")]
         return (specific or matches)[0]
+
+    def leave_type(self, code: str) -> LeaveType:
+        key = re.sub(r"[^a-z0-9]", "", str(code or "").lower())
+        return self.leave_types.get(key) or LeaveType(code=code, label=code)
+
+    def credited_hours_for(self, entry: LeaveEntry, person: Staff) -> float:
+        """Hours to credit for one absence, clipped to the roster period.
+
+        An explicit figure on the leave row wins.  Otherwise the hours come from
+        the person's own working pattern, so a part-timer absent for a week is
+        credited a part-time week rather than a full one.
+        """
+        kind = self.leave_type(entry.code)
+        if not kind.credits_hours or kind.credited_method == CREDIT_NONE:
+            return 0.0
+
+        first = max(entry.start, self.period.start)
+        last = min(entry.end, self.period.end)
+        if last < first:
+            return 0.0
+
+        if entry.credited_hours is not None:
+            # Pro-rata if only part of the absence falls inside the period.
+            whole = (entry.end - entry.start).days + 1
+            inside = (last - first).days + 1
+            return round(entry.credited_hours * inside / whole, 4)
+
+        per_day = (kind.fixed_daily_hours if kind.credited_method == CREDIT_FIXED
+                   and kind.fixed_daily_hours else person.normal_daily_hours)
+
+        total = 0.0
+        day = first
+        while day <= last:
+            # Only days the person would otherwise have worked are credited.
+            if person.availability.works_weekday(day, self.period.start) \
+                    and day.weekday() not in self.rules.weekend_days:
+                total += per_day
+            day += timedelta(days=1)
+        return round(total, 4)
 
     def target_hours(self, person: Staff) -> float:
         """Contracted hours for the roster period.

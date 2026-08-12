@@ -102,8 +102,11 @@ class Scheduler:
             person.target_period_hours = (
                 person.min_period_hours or config.target_hours(person))
             person.allocated_hours = 0.0
+            person.credited_absence_hours = 0.0
 
-        # Leave lookup, clipped to the roster period.
+        # Leave lookup, clipped to the roster period, plus the hours credited for
+        # it.  Crediting absence is what stops the roster handing somebody extra
+        # shifts to make up hours they were away for.
         self.leave: dict[tuple[date, str], str] = {}
         for entry in config.leave:
             first = max(entry.start, self.period.start)
@@ -112,6 +115,11 @@ class Scheduler:
             while day <= last:
                 self.leave[(day, entry.staff_id)] = entry.code
                 day += timedelta(days=1)
+            person = self.by_id.get(entry.staff_id)
+            if person is not None:
+                person.credited_absence_hours = round(
+                    person.credited_absence_hours
+                    + config.credited_hours_for(entry, person), 4)
 
         self.assignments: dict[tuple[date, str], Assignment] = {}
         self.bench_allocations: list[BenchAllocation] = []
@@ -188,11 +196,29 @@ class Scheduler:
         return person.allocated_hours if person else 0.0
 
     def hours_deficit(self, staff_id: str) -> float:
-        """How far below contracted target somebody is.  Higher = more owed work."""
+        """How far below contracted target somebody is.  Higher = more owed work.
+
+        Measured against *total accounted* hours, so credited absence counts.
+        Somebody who has been on leave for a week is not treated as owing that
+        week back.
+        """
         person = self.by_id.get(staff_id)
         if not person:
             return 0.0
-        return round(person.target_period_hours - person.allocated_hours, 4)
+        return round(person.target_period_hours - person.total_accounted_hours, 4)
+
+    def hours_in_week(self, staff_id: str, day: date) -> float:
+        """Worked hours in the Monday-to-Sunday week containing ``day``."""
+        monday = day - timedelta(days=day.weekday())
+        total = 0.0
+        for offset in range(7):
+            assignment = self.assignments.get(
+                (monday + timedelta(days=offset), staff_id))
+            if assignment:
+                shift = self.shift_by_code.get(assignment.shift_code)
+                if shift:
+                    total += shift.hours
+        return round(total, 4)
 
     def count_nights(self, staff_id: str) -> int:
         return sum(1 for (_, sid), a in self.assignments.items()
@@ -346,9 +372,13 @@ class Scheduler:
             if after is not None and after < minimum:
                 return False
 
-        # Hard hours ceiling, only when a manager has configured one.
+        # Hard hours ceilings, only where a manager has configured one.
         if person.max_period_hours:
             if person.allocated_hours + shift.hours > person.max_period_hours:
+                return False
+        if person.max_weekly_hours:
+            if self.hours_in_week(staff_id, day) + shift.hours \
+                    > person.max_weekly_hours:
                 return False
 
         return True

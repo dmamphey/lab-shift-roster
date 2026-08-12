@@ -292,8 +292,8 @@ def test_a_finish_time_before_a_start_time_is_reported():
 
 
 def test_a_zero_length_shift_is_reported():
-    def zero_length(workbook):
-        workbook["Shifts"]["D2"] = workbook["Shifts"]["C2"].value
+    def zero_length(workbook):                    # data starts on row 3
+        workbook["Shifts"]["D3"] = workbook["Shifts"]["C3"].value
     result, messages = _problems(_modified_demo(zero_length))
     assert not result["ok"]
     assert any("no length" in message or "starts and finishes" in message
@@ -301,8 +301,8 @@ def test_a_zero_length_shift_is_reported():
 
 
 def test_a_duplicate_shift_code_is_reported():
-    def duplicate(workbook):
-        workbook["Shifts"]["A3"] = workbook["Shifts"]["A2"].value
+    def duplicate(workbook):                      # data starts on row 3
+        workbook["Shifts"]["A4"] = workbook["Shifts"]["A3"].value
     result, messages = _problems(_modified_demo(duplicate))
     assert not result["ok"]
     assert any("appears twice" in message for message in messages)

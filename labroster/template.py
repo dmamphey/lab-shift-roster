@@ -25,7 +25,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import SCHEMA_VERSION
-from .models import CompetencyStatus, WEEKDAY_SHORT
+from .models import CREDIT_METHODS, CompetencyStatus, WEEKDAY_SHORT
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
 SECTION_FILL = PatternFill("solid", fgColor="2E5496")
@@ -131,6 +131,55 @@ def _yes_no(sheet, header_row, columns, last_row=400):
         validation.add(f"{letter}{header_row + 1}:{letter}{last_row}")
 
 
+def _colour_previews(sheet, header_row, row_count) -> None:
+    """Show the configured shift colours, not just their hex codes.
+
+    A manager choosing colours should be able to see them.  The Colour cell is
+    filled with the background colour, the Font Colour cell is filled white with
+    that font colour applied, and the Preview cell shows the shift name exactly as
+    it will appear on the roster.
+    """
+    colour_column, font_column, preview_column = 7, 8, 9
+    for offset in range(row_count):
+        row = header_row + 1 + offset
+        background = str(sheet.cell(row=row, column=colour_column).value
+                         or "FFFFFF").strip().lstrip("#").upper()
+        foreground = str(sheet.cell(row=row, column=font_column).value
+                         or "000000").strip().lstrip("#").upper()
+        name = sheet.cell(row=row, column=2).value or ""
+
+        swatch = sheet.cell(row=row, column=colour_column)
+        swatch.fill = PatternFill("solid", fgColor=background)
+        swatch.font = Font(bold=True, color=foreground, size=10)
+        swatch.alignment = WRAP
+
+        font_cell = sheet.cell(row=row, column=font_column)
+        font_cell.font = Font(bold=True, color=foreground, size=10)
+        font_cell.alignment = WRAP
+
+        preview = sheet.cell(row=row, column=preview_column,
+                             value=str(name).upper())
+        preview.fill = PatternFill("solid", fgColor=background)
+        preview.font = Font(bold=True, color=foreground, size=11)
+        preview.alignment = WRAP
+        preview.border = BORDER
+
+
+def _leave_colour_previews(sheet, header_row, row_count) -> None:
+    """The same courtesy for absence codes."""
+    for offset in range(row_count):
+        row = header_row + 1 + offset
+        background = str(sheet.cell(row=row, column=3).value
+                         or "FFFFFF").strip().lstrip("#").upper()
+        foreground = str(sheet.cell(row=row, column=4).value
+                         or "000000").strip().lstrip("#").upper()
+        for column in (3, 4):
+            cell = sheet.cell(row=row, column=column)
+            cell.fill = PatternFill("solid", fgColor=background)
+            cell.font = Font(bold=True, color=foreground, size=10)
+            cell.alignment = WRAP
+
+
 def _list_validation(sheet, header_row, column, options, last_row=400):
     formula = '"' + ",".join(options) + '"'
     validation = DataValidation(type="list", formula1=formula, allow_blank=True)
@@ -150,10 +199,12 @@ STAFF_HEADERS = [
     *WEEKDAY_SHORT,
     "Earliest Start", "Latest Finish", "Max Days Per Week",
     "Max Consecutive Days", "Works Nights", "Works Weekends", "Max Nights",
-    "Max Weekends", "Max Hours This Period", "Group", "Restrictions", "Notes",
+    "Max Weekends", "Max Hours This Period", "Max Weekly Hours",
+    "Group", "Restrictions", "Notes",
 ]
 STAFF_WIDTHS = [10, 20, 20, 7, 11, 8, 12, 8, 13, 6, 16, 11,
-                5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 12, 10, 11, 10, 11, 13, 10, 20, 20]
+                5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 12, 10, 11, 10, 11, 13, 13,
+                10, 20, 20]
 
 COMPETENCY_HEADERS = [
     "Staff ID", "Name", "Discipline", "Competency", "Status", "Date Achieved",
@@ -163,8 +214,8 @@ COMPETENCY_HEADERS = [
 COMPETENCY_WIDTHS = [10, 20, 11, 26, 13, 13, 13, 13, 9, 9, 14, 22]
 
 SHIFT_HEADERS = ["Code", "Name", "Start", "End", "Days", "Night Shift",
-                 "Colour", "Font Colour"]
-SHIFT_WIDTHS = [8, 16, 9, 9, 12, 11, 10, 11]
+                 "Colour", "Font Colour", "Preview"]
+SHIFT_WIDTHS = [8, 16, 9, 9, 12, 11, 10, 11, 16]
 
 REQUIREMENT_HEADERS = [
     "Shift Code", "Days", "Min Staff", "Min Registered BMS", "Min Senior",
@@ -178,14 +229,17 @@ BENCH_HEADERS = ["Bench", "Discipline", "Days", "Min Staff",
                  "Rotation Interval (days)"]
 BENCH_WIDTHS = [24, 12, 12, 10, 16, 14, 16, 18]
 
-LEAVE_HEADERS = ["Staff ID", "Name", "From", "To", "Type", "Reason"]
-LEAVE_WIDTHS = [10, 20, 13, 13, 10, 24]
+LEAVE_HEADERS = ["Staff ID", "Name", "From", "To", "Type", "Credited Hours",
+                 "Reason"]
+LEAVE_WIDTHS = [10, 20, 13, 13, 10, 14, 24]
 
 PATTERN_HEADERS = ["Staff ID", "Week", *WEEKDAY_SHORT]
 PATTERN_WIDTHS = [10, 8, 5, 5, 5, 5, 5, 5, 5]
 
-LEAVE_TYPE_HEADERS = ["Code", "Label", "Colour", "Font Colour"]
-LEAVE_TYPE_WIDTHS = [10, 34, 10, 11]
+LEAVE_TYPE_HEADERS = ["Code", "Label", "Colour", "Font Colour",
+                      "Counts Towards Contracted Hours",
+                      "Credited Hours Method", "Fixed Hours Per Day"]
+LEAVE_TYPE_WIDTHS = [10, 30, 10, 11, 22, 22, 17]
 
 DEFAULT_SHIFTS = [
     ("E", "Early", "07:00", "15:00", "Weekday", "N", "FFF2CC", "000000"),
@@ -195,12 +249,18 @@ DEFAULT_SHIFTS = [
     ("W", "Weekend Day", "09:00", "17:30", "Weekend", "N", "00B050", "FFFFFF"),
 ]
 
+# "Counts Towards Contracted Hours" is what stops the roster handing somebody
+# extra shifts to make up hours they were away for.  Every standard absence
+# credits hours by default; change it if your organisation works differently.
 DEFAULT_LEAVE_TYPES = [
-    ("A/L", "Annual leave", "FFFF00", "000000"),
-    ("S/L", "Sickness absence", "FF9999", "000000"),
-    ("C/L", "Carers or compassionate leave", "FFC000", "000000"),
-    ("M/L", "Maternity or paternity leave", "D9D9D9", "000000"),
-    ("S/D", "Study or training day", "CC99FF", "000000"),
+    ("A/L", "Annual leave", "FFFF00", "000000", "Y", "Working pattern", ""),
+    ("S/L", "Sickness absence", "FF9999", "000000", "Y", "Working pattern", ""),
+    ("C/L", "Carers or compassionate leave", "FFC000", "000000", "Y",
+     "Working pattern", ""),
+    ("M/L", "Maternity or paternity leave", "D9D9D9", "000000", "Y",
+     "Working pattern", ""),
+    ("S/D", "Study or training day", "CC99FF", "000000", "Y",
+     "Working pattern", ""),
 ]
 
 #: Shift Codes says which shifts a section must be staffed during.  Transfusion
@@ -226,8 +286,6 @@ DEFAULT_REQUIREMENTS = [
 ]
 
 RULES_ROWS = [
-    ("Senior band threshold", 6,
-     "Band at or above which somebody counts as senior, if you use band for this."),
     ("Minimum rest hours between shifts", 11,
      "Your laboratory's own rest rule. Not a legal compliance determination."),
     ("Maximum consecutive days", 6, "Longest unbroken run of working days."),
@@ -348,8 +406,12 @@ def _rules_sheet(workbook) -> None:
 
 def _configuration_sheets(workbook) -> None:
     """Shifts, requirements, benches and leave types: the same in both workbooks."""
-    sheet, header_row = _sheet(workbook, "Shifts", SHIFT_HEADERS, SHIFT_WIDTHS)
+    sheet, header_row = _sheet(
+        workbook, "Shifts", SHIFT_HEADERS, SHIFT_WIDTHS,
+        note="Colour and Font Colour are hex codes. The cells show the actual "
+             "colour, and Preview shows how the shift will look on the roster.")
     _write_rows(sheet, header_row, DEFAULT_SHIFTS)
+    _colour_previews(sheet, header_row, len(DEFAULT_SHIFTS))
     _yes_no(sheet, header_row, [6], last_row=60)
     _list_validation(sheet, header_row, 5,
                      ["All", "Weekday", "Weekend"], last_row=60)
@@ -375,9 +437,16 @@ def _configuration_sheets(workbook) -> None:
     _list_validation(sheet, header_row, 3, ["All", "Weekday", "Weekend"],
                      last_row=60)
 
-    sheet, header_row = _sheet(workbook, "Leave Types", LEAVE_TYPE_HEADERS,
-                               LEAVE_TYPE_WIDTHS)
+    sheet, header_row = _sheet(
+        workbook, "Leave Types", LEAVE_TYPE_HEADERS, LEAVE_TYPE_WIDTHS,
+        note="'Counts Towards Contracted Hours' stops LabRoster giving somebody "
+             "extra shifts to make up hours they were away for. Credited hours "
+             "come from that person's own working pattern unless you set a fixed "
+             "figure.")
     _write_rows(sheet, header_row, DEFAULT_LEAVE_TYPES)
+    _leave_colour_previews(sheet, header_row, len(DEFAULT_LEAVE_TYPES))
+    _yes_no(sheet, header_row, [5], last_row=60)
+    _list_validation(sheet, header_row, 6, CREDIT_METHODS, last_row=60)
 
 
 def _empty_people_sheets(workbook) -> None:
@@ -439,54 +508,55 @@ def _demo_staff(period_start: date):
     Y, N = "Y", "N"
     # id, name, title, band, reg, senior, coord, trainee, hours, fte, pattern,
     # cycle, Mon..Sun, earliest, latest, maxdays, maxconsec, nights, weekends,
-    # maxnights, maxweekends, maxhours, group, restrictions, notes
+    # maxnights, maxweekends, maxperiodhours, maxweeklyhours, group,
+    # restrictions, notes
     return [
         ("S01", "Alex Sample", "Laboratory Manager", "8a", Y, Y, Y, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, N, N, "", "", "", "", N, N, "", "", 0,
-         "Main", "Management time; no nights", ""),
+         "", "Main", "Management time; no nights", ""),
         ("S02", "Jordan Test", "Senior BMS", "7", Y, Y, Y, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S03", "Casey Example", "Senior BMS", "6", Y, Y, Y, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S04", "Morgan Demo", "BMS", "6", Y, Y, N, N, 30.0, 0.8,
          "Part time", 1, Y, Y, N, Y, Y, Y, Y, "", "", 4, "", Y, Y, 0, 2, 0,
-         "Main", "No Wednesdays; maximum 2 weekends", ""),
+         "", "Main", "No Wednesdays; maximum 2 weekends", ""),
         ("S05", "Riley Placeholder", "BMS", "6", Y, Y, N, N, 22.5, 0.6,
          "Part time", 1, N, Y, Y, Y, N, N, N, "", "", 3, "", N, N, 0, 0, 0,
-         "Main", "No Mondays or Fridays; no nights or weekends", ""),
+         "", "Main", "No Mondays or Fridays; no nights or weekends", ""),
         ("S06", "Jamie Mock", "BMS", "5", Y, N, N, N, 22.5, 0.6,
          "Alternating weeks", 2, "", "", "", "", "", "", "", "", "", "", "",
-         Y, Y, 0, 0, 0, "Main",
+         Y, Y, 0, 0, 0, "", "Main",
          "Alternating two-week pattern, three days each week", ""),
         ("S07", "Taylor Dummy", "BMS", "5", Y, N, N, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S08", "Avery Specimen", "BMS", "5", Y, N, N, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S09", "Quinn Template", "BMS", "5", Y, N, N, N, 18.75, 0.5,
          "Part time", 1, N, N, Y, Y, Y, N, N, "", "16:00", 3, "", N, N, 0, 0, 0,
-         "Main", "Wednesday to Friday, finishing by 16:00", ""),
+         "", "Main", "Wednesday to Friday, finishing by 16:00", ""),
         ("S10", "Rowan Draft", "BMS", "5", Y, N, N, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S11", "Skyler Trial", "Associate Practitioner", "4", N, N, N, N,
          37.5, 1.0, "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "",
-         N, Y, 0, 0, 0, "Main", "Not registered; no nights", ""),
+         N, Y, 0, 0, 0, "", "Main", "Not registered; no nights", ""),
         ("S12", "Parker Proxy", "Trainee BMS", "4", N, N, N, Y, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, N, N, "", "", "", "", N, N, 0, 0, 0,
-         "Main", "Trainee; supervised working only", ""),
+         "", "Main", "Trainee; supervised working only", ""),
         ("S13", "Reese Stub", "BMS", "6", Y, Y, Y, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S14", "Devon Filler", "BMS", "5", Y, N, N, N, 37.5, 1.0,
          "Full time", 1, Y, Y, Y, Y, Y, Y, Y, "", "", "", "", Y, Y, 0, 0, 0,
-         "Main", "", ""),
+         "", "Main", "", ""),
         ("S15", "Harper Model", "Support Worker", "3", N, N, N, N, 22.5, 0.6,
          "Part time", 1, N, N, Y, Y, Y, N, N, "", "", 3, "", N, N, 0, 0, 0,
-         "Support", "Specimen reception only", ""),
+         "", "Support", "Specimen reception only", ""),
     ]
 
 
@@ -577,13 +647,13 @@ def _demo_competencies(period_start: date):
 def _demo_leave(period_start: date, period_end: date):
     return [
         ("S02", "Jordan Test", period_start + timedelta(days=7),
-         period_start + timedelta(days=11), "A/L", "Booked leave"),
+         period_start + timedelta(days=11), "A/L", "", "Booked leave"),
         ("S07", "Taylor Dummy", period_start + timedelta(days=14),
-         period_start + timedelta(days=20), "A/L", "Booked leave"),
+         period_start + timedelta(days=20), "A/L", "", "Booked leave"),
         ("S13", "Reese Stub", period_start + timedelta(days=2),
-         period_start + timedelta(days=3), "S/L", "Recorded absence"),
+         period_start + timedelta(days=3), "S/L", "", "Recorded absence"),
         ("S08", "Avery Specimen", period_start + timedelta(days=21),
-         period_start + timedelta(days=21), "S/D", "Training day"),
+         period_start + timedelta(days=21), "S/D", "", "Training day"),
     ]
 
 

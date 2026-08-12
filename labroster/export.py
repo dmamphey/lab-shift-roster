@@ -649,37 +649,46 @@ def _hours(workbook, analysis) -> None:
                  "the roster period.")
     row = _headers(sheet, row,
                    ["Name", "Band", "Contracted Weekly", "FTE", "Target Hours",
-                    "Allocated Hours", "Difference", "% of Target", "Status",
+                    "Worked Hours", "Credited Absence Hours",
+                    "Total Accounted Hours", "Variance", "% of Target", "Status",
                     "Shifts", "Nights", "Saturdays", "Sundays", "Full Weekends",
-                    "Leave Days"],
-                   [24, 7, 14, 6, 12, 14, 11, 11, 16, 8, 8, 10, 9, 13, 11])
+                    "Absence Days"],
+                   [24, 7, 14, 6, 12, 13, 16, 16, 11, 11, 16, 8, 8, 10, 9, 13, 12])
     for entry in analysis.hours_rows:
-        fill = PASSED_FILL
-        if entry.status == "Under target":
-            fill = REVIEW_FILL
-        elif entry.status == "Over target":
-            fill = REVIEW_FILL
-        elif entry.status == "No target set":
-            fill = REVIEW_FILL
+        fill = (PASSED_FILL if entry.status == "Within tolerance" else REVIEW_FILL)
         row = _row(sheet, row, [
             entry.name, entry.band, entry.contracted_weekly_hours, entry.fte,
-            entry.target_hours, entry.allocated_hours, entry.variance,
+            entry.target_hours, entry.worked_hours,
+            entry.credited_absence_hours, entry.total_accounted_hours,
+            entry.variance,
             entry.percent_of_target if entry.percent_of_target is not None else "—",
             entry.status, entry.shifts, entry.nights, entry.saturdays,
             entry.sundays, entry.full_weekends, entry.leave_days,
-        ], fills={9: fill})
+        ], fills={11: fill})
 
     totals = analysis.hours_rows
     row = _row(sheet, row, [
         "TOTAL", "", "", "",
         round(sum(r.target_hours for r in totals), 2),
-        round(sum(r.allocated_hours for r in totals), 2),
+        round(sum(r.worked_hours for r in totals), 2),
+        round(sum(r.credited_absence_hours for r in totals), 2),
+        round(sum(r.total_accounted_hours for r in totals), 2),
         round(sum(r.variance for r in totals), 2), "", "",
         sum(r.shifts for r in totals), sum(r.nights for r in totals),
         sum(r.saturdays for r in totals), sum(r.sundays for r in totals),
         sum(r.full_weekends for r in totals), sum(r.leave_days for r in totals),
-    ], fills={column: TOTAL_FILL for column in range(1, 16)},
-       fonts={column: BOLD for column in range(1, 16)})
+    ], fills={column: TOTAL_FILL for column in range(1, 18)},
+       fonts={column: BOLD for column in range(1, 18)})
+
+    row += 1
+    note = sheet.cell(row=row, column=1,
+                      value="Target hours are contracted weekly hours scaled to "
+                            "the roster period. Credited absence hours come from "
+                            "each person's own working pattern, so hours lost to "
+                            "leave are not made up with extra shifts.")
+    note.font = MUTED
+    note.alignment = WRAP_LEFT
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=10)
     _landscape(sheet)
 
 
@@ -710,7 +719,7 @@ def _fairness(workbook, scheduler, analysis) -> None:
             entry.name,
             "Yes" if person.nights_ok else "No",
             "Yes" if person.weekends_ok else "No",
-            entry.allocated_hours, entry.nights, entry.saturdays, entry.sundays,
+            entry.worked_hours, entry.nights, entry.saturdays, entry.sundays,
             entry.full_weekends, entry.lates, entry.earlies,
         ])
     _landscape(sheet)

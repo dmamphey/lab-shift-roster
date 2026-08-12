@@ -21,6 +21,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from . import SCHEMA_VERSION
 from .models import (
+    CREDIT_FIXED, CREDIT_FROM_PATTERN, CREDIT_METHODS,
     Availability, Bench, Competency, CompetencyStatus, Config, LeaveEntry,
     LeaveType, Period, RosterDetails, Rules, ShiftRequirement, ShiftType, Staff,
     WEEKDAY_NAMES, WEEKDAY_SHORT,
@@ -265,8 +266,14 @@ class Reader:
                                           "30, 60, 90")))
                       if _to_int(part)]
 
+        if values.get(norm("Senior band threshold")) not in (None, ""):
+            self.add(WARNING, "Rules",
+                     "'Senior band threshold' is no longer used. Seniority is "
+                     "recorded per person in the Senior column on the Staff sheet, "
+                     "and shifts needing a particular grade use Min Band on the "
+                     "Requirements sheet. You can delete this row.")
+
         rules = Rules(
-            senior_band=_to_float(get("Senior band threshold", 6), 6.0),
             minimum_rest_hours=_to_float(
                 get("Minimum rest hours between shifts", 11), 11.0),
             max_consecutive_days=_to_int(get("Maximum consecutive days", 6), 6),
@@ -406,6 +413,8 @@ class Reader:
                 working_pattern=str(record.get("workingpattern") or "").strip(),
                 max_period_hours=max(0.0, _to_float(
                     record.get("maxhoursthisperiod"), 0.0)),
+                max_weekly_hours=max(0.0, _to_float(
+                    record.get("maxweeklyhours"), 0.0)),
                 availability=availability,
                 nights_ok=_is_yes(record.get("worksnights"), True),
                 weekends_ok=_is_yes(record.get("worksweekends"), True),
@@ -688,14 +697,32 @@ class Reader:
         if sheet is not None:
             for record in self.table(sheet, ["Code", "Label"], "Leave Types"):
                 code = str(record.get("code") or "").strip()
-                if code:
-                    types[norm(code)] = LeaveType(
-                        code=code,
-                        label=str(record.get("label") or code).strip(),
-                        colour=str(record.get("colour")
-                                   or "FFFF00").strip().lstrip("#").upper(),
-                        font_colour=str(record.get("fontcolour")
-                                        or "000000").strip().lstrip("#").upper())
+                if not code:
+                    continue
+                method = str(record.get("creditedhoursmethod")
+                             or CREDIT_FROM_PATTERN).strip()
+                matched = next((option for option in CREDIT_METHODS
+                                if norm(option) == norm(method)), None)
+                if matched is None:
+                    self.add(WARNING, "Leave Types",
+                             f"'{method}' is not a way of working out credited "
+                             f"hours for '{code}'. Use one of: "
+                             f"{', '.join(CREDIT_METHODS)}. The working pattern "
+                             f"has been used.", row=record.get("_row"))
+                    matched = CREDIT_FROM_PATTERN
+                types[norm(code)] = LeaveType(
+                    code=code,
+                    label=str(record.get("label") or code).strip(),
+                    colour=str(record.get("colour")
+                               or "FFFF00").strip().lstrip("#").upper(),
+                    font_colour=str(record.get("fontcolour")
+                                    or "000000").strip().lstrip("#").upper(),
+                    credits_hours=_is_yes(
+                        record.get("countstowardscontractedhours"), True),
+                    credited_method=matched,
+                    fixed_daily_hours=max(0.0, _to_float(
+                        record.get("fixedhoursperday"), 0.0)))
+
         for code, label in [("A/L", "Annual leave"), ("S/L", "Sickness absence"),
                             ("C/L", "Carers or compassionate leave"),
                             ("M/L", "Maternity or paternity leave"),
@@ -750,10 +777,13 @@ class Reader:
                          f"used as-is; add it to control how it is shown.",
                          row=row_number)
 
+            explicit = record.get("creditedhours")
             entries.append(LeaveEntry(
                 staff_id=staff_id, start=start, end=end,
                 code=leave_types[norm(code)].code,
-                reason=str(record.get("reason") or "").strip()))
+                reason=str(record.get("reason") or "").strip(),
+                credited_hours=(None if explicit in (None, "")
+                                else max(0.0, _to_float(explicit, 0.0)))))
         return entries
 
     # -- orchestration ---------------------------------------------------

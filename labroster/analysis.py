@@ -55,7 +55,9 @@ class HoursRow:
     contracted_weekly_hours: float
     fte: float
     target_hours: float
-    allocated_hours: float
+    worked_hours: float
+    credited_absence_hours: float
+    total_accounted_hours: float
     variance: float
     percent_of_target: float | None
     shifts: int
@@ -288,21 +290,23 @@ class Analysis:
             leave_days = sum(1 for (_, sid) in scheduler.leave
                              if sid == person.staff_id)
             target = person.target_period_hours
-            allocated = person.allocated_hours
+            accounted = person.total_accounted_hours
             status = "Within tolerance"
             if target:
-                if allocated < target * (1 - tolerance):
+                if accounted < target * (1 - tolerance):
                     status = "Under target"
-                elif allocated > target * (1 + tolerance):
+                elif accounted > target * (1 + tolerance):
                     status = "Over target"
-            elif allocated:
+            elif accounted:
                 status = "No target set"
 
             self.hours_rows.append(HoursRow(
                 staff_id=person.staff_id, name=person.name, band=person.band,
                 contracted_weekly_hours=person.contracted_weekly_hours,
                 fte=person.fte, target_hours=round(target, 2),
-                allocated_hours=round(allocated, 2),
+                worked_hours=round(person.allocated_hours, 2),
+                credited_absence_hours=round(person.credited_absence_hours, 2),
+                total_accounted_hours=round(accounted, 2),
                 variance=person.hours_variance,
                 percent_of_target=person.percent_of_target,
                 shifts=shifts,
@@ -323,14 +327,17 @@ class Analysis:
                       and row.target_hours]
         for row in off_target:
             direction = "below" if row.variance < 0 else "above"
+            credited = (f", plus {row.credited_absence_hours:g} hours credited "
+                        f"for absence" if row.credited_absence_hours else "")
             self.add(REVIEW, "Contracted hours",
                      f"{row.name} is {direction} contracted hours",
-                     f"{row.name} is allocated {row.allocated_hours:g} hours "
-                     f"against a target of {row.target_hours:g} "
+                     f"{row.name} works {row.worked_hours:g} hours{credited}, "
+                     f"giving {row.total_accounted_hours:g} accounted against a "
+                     f"target of {row.target_hours:g} "
                      f"({row.percent_of_target:g}% of target, "
                      f"{row.variance:+g} hours).",
                      review_point="Check whether this reflects part-time hours, "
-                                  "leave in the period, or a rota imbalance.",
+                                  "absence in the period, or a roster imbalance.",
                      staff=[row.staff_id])
         if not off_target:
             self.add(PASSED, "Contracted hours", "Hours within tolerance",
@@ -630,7 +637,10 @@ class Analysis:
             "name": row.name, "band": row.band,
             "contracted_weekly_hours": row.contracted_weekly_hours,
             "fte": row.fte, "target": row.target_hours,
-            "allocated": row.allocated_hours, "variance": row.variance,
+            "worked": row.worked_hours,
+            "credited": row.credited_absence_hours,
+            "accounted": row.total_accounted_hours,
+            "variance": row.variance,
             "percent": row.percent_of_target, "status": row.status,
             "shifts": row.shifts, "nights": row.nights,
             "saturdays": row.saturdays, "sundays": row.sundays,
