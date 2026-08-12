@@ -46,9 +46,9 @@ MANAGER_STEPS = [
     "minimum staffing and competencies each shift needs.",
     "Check the Roster Details and Rules sheets.",
     "Save the workbook.",
-    "Upload it to LabRoster in your browser.",
+    "Upload it to Lab Shift Roster in your browser.",
     "Generate the draft roster.",
-    "Review the warnings LabRoster raises.",
+    "Review the warnings Lab Shift Roster raises.",
     "Export the finished workbook.",
 ]
 
@@ -77,7 +77,7 @@ INSTRUCTION_NOTES = [
      "rest interval. They are settings for planning, not a determination of "
      "legal or regulatory compliance.", False),
     ("", False),
-    ("What LabRoster produces", True),
+    ("What Lab Shift Roster produces", True),
     ("A draft roster for you to review, together with a list of staffing, "
      "competency and coverage gaps. Every roster it generates is a draft "
      "requiring managerial review.", False),
@@ -322,22 +322,22 @@ def _instructions_sheet(workbook, is_demo: bool,
     sheet.sheet_view.showGridLines = False
     sheet.column_dimensions["A"].width = 104
 
-    sheet["A1"] = "LabRoster"
+    sheet["A1"] = "Lab Shift Roster"
     sheet["A1"].font = Font(bold=True, size=18, color="1F3864")
-    sheet["A2"] = "Competency-aware workforce planning for diagnostic laboratories"
+    sheet["A2"] = "A free, secure and intelligent workforce planning tool for diagnostic laboratories."
     sheet["A2"].font = Font(size=11, italic=True, color="5B6470")
 
     row = 4
     if is_demo and balanced:
         banner = ("BALANCED EXAMPLE LABORATORY — a well-staffed fictional "
-                  "department, included to show what LabRoster produces when a "
+                  "department, included to show what Lab Shift Roster produces when a "
                   "workforce comfortably covers its requirements. Every person, "
                   "competency and date is fictional.")
         ink, paper = "17603A", "E4F4EA"
     elif is_demo:
         banner = ("CHALLENGING EXAMPLE LABORATORY — this example deliberately "
                   "contains staffing, competency, leave and availability "
-                  "constraints so you can see how LabRoster identifies problems. "
+                  "constraints so you can see how Lab Shift Roster identifies problems. "
                   "It is not typical. Every person, competency and date is "
                   "fictional.")
         ink, paper = "9C0006", "FBE6E8"
@@ -451,7 +451,7 @@ def _configuration_sheets(workbook, requirements=None) -> None:
 
     sheet, header_row = _sheet(
         workbook, "Leave Types", LEAVE_TYPE_HEADERS, LEAVE_TYPE_WIDTHS,
-        note="'Counts Towards Contracted Hours' stops LabRoster giving somebody "
+        note="'Counts Towards Contracted Hours' stops Lab Shift Roster giving somebody "
              "extra shifts to make up hours they were away for. Credited hours "
              "come from that person's own working pattern unless you set a fixed "
              "figure.")
@@ -849,7 +849,7 @@ def build_balanced_workbook(path) -> None:
     """A fictional laboratory that produces a strong draft with few problems.
 
     The challenging example is deliberately hard, which is useful for showing what
-    LabRoster detects but misleading as a first impression: nobody should conclude
+    Lab Shift Roster detects but misleading as a first impression: nobody should conclude
     that the tool normally reports dozens of critical errors.
     """
     _build_example(path, flavour="balanced")

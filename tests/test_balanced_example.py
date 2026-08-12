@@ -1,6 +1,6 @@
 """The balanced demonstration laboratory, and what it is there to prove.
 
-A first-time user should not conclude that LabRoster normally reports dozens of
+A first-time user should not conclude that Lab Shift Roster normally reports dozens of
 critical problems.  The challenging example is deliberately hard; this one is a
 well-staffed department, and these tests keep it that way.
 """

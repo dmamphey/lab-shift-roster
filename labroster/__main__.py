@@ -1,4 +1,4 @@
-"""Command line for LabRoster, for developers and batch use.
+"""Command line for Lab Shift Roster, for developers and batch use.
 
     python -m labroster template --out blank.xlsx
     python -m labroster example  --out example-laboratory.xlsx
@@ -105,22 +105,22 @@ def main(argv=None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="python -m labroster",
-        description="LabRoster — competency-aware workforce planning for "
-                    "diagnostic laboratories.")
+        description="Lab Shift Roster — a free, secure and intelligent "
+                    "workforce planning tool for diagnostic laboratories.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     blank = sub.add_parser("template", help="write a blank workbook to fill in")
-    blank.add_argument("--out", default="LabRoster-blank-template.xlsx")
+    blank.add_argument("--out", default="Lab-Shift-Roster-blank-template.xlsx")
     blank.set_defaults(func=cmd_template)
 
     example = sub.add_parser("example",
                              help="write the fictional example laboratory")
-    example.add_argument("--out", default="LabRoster-example-laboratory.xlsx")
+    example.add_argument("--out", default="Lab-Shift-Roster-example-laboratory.xlsx")
     example.set_defaults(func=cmd_example)
 
     generate = sub.add_parser("generate", help="build a draft roster")
     generate.add_argument("--input", required=True)
-    generate.add_argument("--out", default="LabRoster-draft.xlsx")
+    generate.add_argument("--out", default="Lab-Shift-Roster-draft.xlsx")
     generate.add_argument("--start", help="override the period start (yyyy-mm-dd)")
     generate.add_argument("--end", help="override the period end (yyyy-mm-dd)")
     generate.add_argument("--variation", type=int,

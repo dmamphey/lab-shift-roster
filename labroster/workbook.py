@@ -471,7 +471,7 @@ class Reader:
         sheet = self.sheet("Competencies", "Competency")
         if sheet is None:
             self.add(ERROR, "Competencies",
-                     "The workbook has no Competencies sheet. LabRoster needs it to "
+                     "The workbook has no Competencies sheet. Lab Shift Roster needs it to "
                      "know who can work in each laboratory section.")
             return []
 
@@ -587,7 +587,7 @@ class Reader:
                            "Requirements")
         if sheet is None:
             self.add(ERROR, "Shift Requirements",
-                     "The workbook has no Shift Requirements sheet, so LabRoster "
+                     "The workbook has no Shift Requirements sheet, so Lab Shift Roster "
                      "does not know how many staff each shift needs.")
             return []
 
@@ -657,7 +657,7 @@ class Reader:
             discipline = str(record.get("discipline") or "").strip().upper()
             if not discipline:
                 self.add(ERROR, "Benches",
-                         f"Bench '{name}' has no discipline, so LabRoster cannot "
+                         f"Bench '{name}' has no discipline, so Lab Shift Roster cannot "
                          f"tell who is competent to cover it.", row=row_number)
                 continue
             if discipline not in held:
@@ -797,7 +797,7 @@ class Reader:
 
         if looks_legacy:
             raise WorkbookError(
-                "This workbook was made with an earlier version of LabRoster. It "
+                "This workbook was made with an earlier version of Lab Shift Roster. It "
                 "does not contain the competency, contracted hours or shift "
                 "requirement information that this version needs, and those cannot "
                 "safely be guessed. Download the latest blank template and copy "
@@ -811,7 +811,7 @@ class Reader:
         if missing:
             raise WorkbookError(
                 "This workbook is missing sheet"
-                f"{'s' if len(missing) > 1 else ''} that LabRoster needs: "
+                f"{'s' if len(missing) > 1 else ''} that Lab Shift Roster needs: "
                 f"{', '.join(missing)}. Download the latest template, or add the "
                 f"missing sheet"
                 f"{'s' if len(missing) > 1 else ''}.",

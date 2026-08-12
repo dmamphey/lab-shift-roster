@@ -176,7 +176,7 @@ rostered.
 
 ### Interface
 
-- Repositioned as LabRoster, with the local-processing guarantee prominent.
+- Repositioned as Lab Shift Roster, with the local-processing guarantee prominent.
 - Six-step explanation, then two distinct downloads: **blank template** (headings,
   guidance and dropdowns, no employee records) and **example laboratory**
   (a complete fictional department, clearly labelled as fictional).
@@ -184,7 +184,7 @@ rostered.
   scrolling with a sticky name column, and filters for staff, shift and date
   range. Section coverage shown per date and section.
 - Technical language removed from the normal interface. Loading says
-  "Preparing LabRoster…" then "LabRoster ready". Pyodide, WebAssembly and openpyxl
+  "Preparing Lab Shift Roster…" then "Lab Shift Roster ready". Pyodide, WebAssembly and openpyxl
   are described only inside an optional "Privacy and technical information"
   section. The random seed became "Roster variation" with a
   **Generate alternative roster** button, under Advanced options.

@@ -1,13 +1,13 @@
-# LabRoster
+# Lab Shift Roster
 
-**Competency-aware workforce planning for diagnostic laboratories.**
+**A free, secure and intelligent workforce planning tool for diagnostic laboratories.**
 
 Import your workforce information, define your shift and competency
-requirements, and LabRoster creates a draft rota while identifying staffing,
+requirements, and Lab Shift Roster creates a draft rota while identifying staffing,
 skills and coverage gaps. Workforce data is processed locally in your browser and
 is not uploaded to Optymum SS.
 
-The question LabRoster is built to answer is:
+The question Lab Shift Roster is built to answer is:
 
 > *Do I have the right people, with the right competencies, in the right
 > laboratory areas for this shift?*
@@ -67,7 +67,7 @@ Nothing is installed and nothing is uploaded.
 
 ## How local processing works
 
-LabRoster runs a Python runtime compiled to WebAssembly (Pyodide) plus the
+Lab Shift Roster runs a Python runtime compiled to WebAssembly (Pyodide) plus the
 openpyxl spreadsheet library inside your browser tab. Your workbook is read by
 JavaScript, handed to Python in the same tab, and the exported workbook is
 written back out for download.
@@ -78,7 +78,7 @@ static files while keeping workforce data on your own device.
 
 We make no absolute security guarantees about your device or network. Include
 only the workforce information the tool needs; do not add sensitive personal
-details, and never add patient-identifiable information — LabRoster does not
+details, and never add patient-identifiable information — Lab Shift Roster does not
 require any.
 
 ## Running and deploying it
@@ -107,7 +107,7 @@ No conventional Python server is needed or wanted.
 By default the Python runtime loads from a public CDN, which keeps the repository
 small and needs no download step for development or the GitHub Pages demo. For an
 NHS-managed deployment that is usually the wrong trade: every extra domain is
-another firewall exception. So LabRoster can serve everything from one domain.
+another firewall exception. So Lab Shift Roster can serve everything from one domain.
 
 ```bash
 python tools/fetch_runtime.py
@@ -179,7 +179,7 @@ no rest conflicts and no single points of failure. This is what a healthy result
 looks like.
 
 **Challenging example** — deliberately contains staffing, competency, leave and
-availability constraints so you can see what LabRoster detects. It is labelled as
+availability constraints so you can see what Lab Shift Roster detects. It is labelled as
 not typical, because it is not.
 
 ## Manual adjustment
@@ -345,7 +345,7 @@ every category of warning, and tests assert that it does.
 
 - Workforce data is processed locally in your browser
 - Uploaded workbooks are not sent to Optymum SS
-- LabRoster does not store roster information on an external database
+- Lab Shift Roster does not store roster information on an external database
 - The generated workbook is created locally for download
 - No absolute security guarantees are made
 - Patient-identifiable data is never required and should never be added
@@ -355,5 +355,5 @@ every category of warning, and tests assert that it does.
 The repository contains an empty `.nojekyll` file at its root. Without it, GitHub
 Pages runs the files through Jekyll, which **silently excludes anything whose name
 begins with an underscore** — including `labroster/__init__.py`. The site then
-loads but cannot start, reporting that part of LabRoster is missing. Keep that
+loads but cannot start, reporting that part of Lab Shift Roster is missing. Keep that
 file if you deploy to Pages.

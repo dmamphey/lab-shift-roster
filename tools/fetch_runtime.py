@@ -34,7 +34,7 @@ PYODIDE_VERSION = "0.26.4"
 CDN = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full"
 
 #: The runtime files the browser actually loads.  Deliberately not the whole
-#: Pyodide distribution, which is several hundred megabytes of packages LabRoster
+#: Pyodide distribution, which is several hundred megabytes of packages Lab Shift Roster
 #: never touches.
 RUNTIME_FILES = [
     "pyodide.js",
@@ -52,7 +52,7 @@ RUNTIME_WHEELS = [
     "packaging-23.2-py3-none-any.whl",
 ]
 
-#: Wheels LabRoster installs by URL, which micropip would otherwise pull from
+#: Wheels Lab Shift Roster installs by URL, which micropip would otherwise pull from
 #: PyPI at run time.
 WHEELS = [
     "https://files.pythonhosted.org/packages/py2.py3/o/openpyxl/"
@@ -61,7 +61,7 @@ WHEELS = [
     "et_xmlfile-2.0.0-py3-none-any.whl",
 ]
 
-LICENCES = """LabRoster self-hosted runtime — third party notices
+LICENCES = """Lab Shift Roster self-hosted runtime — third party notices
 
 Pyodide (runtime, micropip)      Mozilla Public License 2.0
     https://github.com/pyodide/pyodide/blob/main/LICENSE

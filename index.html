@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LabRoster — a secure and intelligent workforce planning tool for diagnostic laboratories</title>
-<meta name="description" content="LabRoster builds draft laboratory rosters around staffing levels, competencies, working patterns, shift requirements and bench coverage. Your workforce workbook is processed locally in your browser and is not uploaded to Optymum SS.">
+<title>Lab Shift Roster — a free, secure and intelligent workforce planning tool for diagnostic laboratories</title>
+<meta name="description" content="Lab Shift Roster builds draft laboratory rosters around staffing levels, competencies, working patterns, shift requirements and bench coverage. Your workforce workbook is processed locally in your browser and is not uploaded to Optymum SS.">
 <meta name="author" content="Optymum SS">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Optymum SS">
-<meta property="og:title" content="LabRoster — a secure and intelligent workforce planning tool for diagnostic laboratories">
+<meta property="og:title" content="Lab Shift Roster — a free, secure and intelligent workforce planning tool for diagnostic laboratories">
 <meta property="og:description" content="Create draft laboratory rosters around staffing, competencies, working patterns and bench coverage. Workforce data is processed locally in your browser.">
 <meta name="twitter:card" content="summary">
 <!-- Inline favicon so the application stays self-contained and works from any
@@ -365,9 +365,8 @@
 
 <header>
   <div class="hero">
-    <h1>LabRoster</h1>
-    <p class="tagline">A secure and intelligent workforce planning tool for
-       diagnostic laboratories.</p>
+    <h1>Lab Shift Roster</h1>
+    <p class="tagline">A free, secure and intelligent workforce planning tool for diagnostic laboratories.</p>
     <p class="pitch">Stop wasting hours on lab scheduling. Set up your laboratory
        data once to generate draft rosters in minutes. Simply input your staffing
        levels, competencies, shift patterns, and bench coverage to automate your
@@ -376,7 +375,7 @@
 
   <div class="privacy">
     <strong>Your workforce data stays on your device.</strong>
-    LabRoster processes your workbook locally in your browser and does not upload
+    Lab Shift Roster processes your workbook locally in your browser and does not upload
     it to Optymum SS. No roster is stored on an external database, and the
     workbook you download is created on your own computer.
   </div>
@@ -402,10 +401,10 @@
      generate a roster from straight away.</p>
   <ul class="hint" style="margin:0 0 1rem;padding-left:1.2rem">
     <li><strong>Balanced example</strong> — a well-staffed department. Shows what
-        LabRoster produces when a workforce comfortably covers its requirements.</li>
+        Lab Shift Roster produces when a workforce comfortably covers its requirements.</li>
     <li><strong>Challenging example</strong> — deliberately contains staffing,
         competency, leave and availability constraints so you can see how
-        LabRoster identifies problems. It is not typical.</li>
+        Lab Shift Roster identifies problems. It is not typical.</li>
   </ul>
   <div class="actions">
     <button id="btn-blank" class="secondary" disabled>Download blank workbook</button>
@@ -459,7 +458,7 @@
   <div class="statusline" id="statusline" role="status" aria-live="polite"
        style="margin-top:1rem">
     <span class="spinner" id="spinner" aria-hidden="true"></span>
-    <span id="status">Preparing LabRoster&hellip;</span>
+    <span id="status">Preparing Lab Shift Roster&hellip;</span>
   </div>
 </section>
 
@@ -485,7 +484,7 @@
   </div>
   <div class="tiles" id="tiles"></div>
   <p class="hint" style="margin-top:1rem">This is a <strong>draft</strong> for you
-     to review. LabRoster supports your decisions about staffing; it does not make
+     to review. Lab Shift Roster supports your decisions about staffing; it does not make
      them.</p>
   <div class="actions" style="margin-top:1rem">
     <button id="btn-export-staff">Export staff rota</button>
@@ -524,7 +523,7 @@
 
 <section class="panel" aria-labelledby="adjust-heading">
   <h2 id="adjust-heading">Adjust an assignment</h2>
-  <p class="hint">Change who is working a shift. LabRoster re-runs every check
+  <p class="hint">Change who is working a shift. Lab Shift Roster re-runs every check
      afterwards, so you see straight away whether the change creates a new problem.
      Manual changes are kept and are never overwritten when the roster is rebuilt.</p>
   <div class="row" style="margin-bottom:1rem">
@@ -626,25 +625,25 @@
 </div><!-- /results -->
 
 <footer>
-  <nav class="footer-links" aria-label="More about LabRoster">
+  <nav class="footer-links" aria-label="More about Lab Shift Roster">
     <a href="#how-heading">User guide</a>
     <a id="feedback-link"
-       href="mailto:projects@optymumss.com?subject=LabRoster%20feedback">Feedback</a>
+       href="mailto:projects@optymumss.com?subject=Lab Shift Roster%20feedback">Feedback</a>
   </nav>
 
 
   <details id="privacy-detail">
-    <summary><strong>How LabRoster protects your data</strong></summary>
+    <summary><strong>How Lab Shift Roster protects your data</strong></summary>
     <h3>What happens to your data</h3>
     <p>Your workbook is read inside your browser tab. It is not uploaded to
-       Optymum SS, and LabRoster does not store roster information on an external
+       Optymum SS, and Lab Shift Roster does not store roster information on an external
        database. The exported workbook is generated on your own device. Once this
        page has loaded you can disconnect from the network and it will still work.</p>
     <p>We cannot make absolute security guarantees about your own device or
        network. Please include only the workforce information the tool needs.
        Do not add sensitive personal details, and never add patient-identifiable
-       information — LabRoster does not require any.</p>
-    <h3>How LabRoster works</h3>
+       information — Lab Shift Roster does not require any.</p>
+    <h3>How Lab Shift Roster works</h3>
     <p>The scheduling engine is rules-based, not artificial intelligence. It fills
        the shifts you define, in an order that satisfies the hardest requirements
        first, and it will not break a rule you have set: where it cannot fill a
@@ -657,8 +656,8 @@
   </details>
 
   <details id="about-detail">
-    <summary><strong>About LabRoster</strong></summary>
-    <p>LabRoster is built for diagnostic laboratory managers. It answers one
+    <summary><strong>About Lab Shift Roster</strong></summary>
+    <p>Lab Shift Roster is built for diagnostic laboratory managers. It answers one
        question: do I have the right people, with the right competencies, in the
        right laboratory areas, at the right time?</p>
     <p>Every roster it produces is a draft for managerial review. It does not
@@ -905,7 +904,7 @@ async function chooseRuntime() {
 
 async function boot() {
   try {
-    setStatus("Preparing LabRoster…", true);
+    setStatus("Preparing Lab Shift Roster…", true);
     await chooseRuntime();
     pyodide = await loadPyodide({ indexURL: runtimeBase });
     await pyodide.loadPackage("micropip");
@@ -920,7 +919,7 @@ async function boot() {
     for (const name of MODULES) {
       const response = await fetch(`labroster/${name}`);
       if (!response.ok) {
-        throw new Error(`Could not load part of LabRoster (${name}). `
+        throw new Error(`Could not load part of Lab Shift Roster (${name}). `
           + "If you are hosting this yourself, the labroster folder must sit "
           + "beside this page.");
       }
@@ -933,7 +932,7 @@ async function boot() {
       "import json; from labroster import api; json.dumps(api.product_info())"));
     applyProductInfo();
 
-    setStatus("LabRoster ready", false);
+    setStatus("Lab Shift Roster ready", false);
     $("runtime-source").textContent = runtimeIsLocal
       ? "This deployment serves the Python runtime from its own domain, so no "
         + "third-party host is contacted."
@@ -942,8 +941,8 @@ async function boot() {
         + "comes from one domain.";
     enable(true);
   } catch (error) {
-    setStatus("LabRoster could not start", false);
-    showProblems("LabRoster could not start in this browser.",
+    setStatus("Lab Shift Roster could not start", false);
+    showProblems("Lab Shift Roster could not start in this browser.",
                  [{ location: "", message: friendly(error) }]);
   }
 }
@@ -969,12 +968,12 @@ function friendly(error) {
 
 const TEMPLATES = {
   blank: { call: "_blank()", path: "/blank.xlsx",
-           file: "LabRoster-blank-workbook.xlsx", label: "blank workbook" },
+           file: "Lab-Shift-Roster-blank-workbook.xlsx", label: "blank workbook" },
   balanced: { call: "_balanced()", path: "/balanced.xlsx",
-              file: "LabRoster-balanced-example.xlsx",
+              file: "Lab-Shift-Roster-balanced-example.xlsx",
               label: "balanced example laboratory" },
   demo: { call: "_demo()", path: "/demo.xlsx",
-          file: "LabRoster-challenging-example.xlsx",
+          file: "Lab-Shift-Roster-challenging-example.xlsx",
           label: "challenging example laboratory" },
 };
 
@@ -988,7 +987,7 @@ async function writeTemplate(kind) {
     setStatus(`${spec.label.charAt(0).toUpperCase()}${spec.label.slice(1)} `
               + `downloaded`, false);
   } catch (error) {
-    setStatus("LabRoster ready", false);
+    setStatus("Lab Shift Roster ready", false);
     showProblems("That did not work.", [{ message: friendly(error) }]);
   }
 }
@@ -1012,7 +1011,7 @@ async function generate(source) {
     const result = JSON.parse(json);
 
     if (!result.ok) {
-      setStatus("LabRoster ready", false);
+      setStatus("Lab Shift Roster ready", false);
       showProblems(result.fatal, result.problems);
       return;
     }
@@ -1026,7 +1025,7 @@ async function generate(source) {
     setStatus("Draft roster ready — please review the issues", false);
     $("results").classList.remove("hidden");
   } catch (error) {
-    setStatus("LabRoster ready", false);
+    setStatus("Lab Shift Roster ready", false);
     showProblems("The roster could not be built.",
                  [{ message: friendly(error) }]);
   } finally {
@@ -1471,7 +1470,7 @@ $("btn-generate").addEventListener("click", async () => {
   if (!file) {
     showProblems("No workbook chosen.", [{
       message: "Choose your completed workbook first, or use "
-             + "'Try the example laboratory' to see how LabRoster works."
+             + "'Try the example laboratory' to see how Lab Shift Roster works."
     }]);
     return;
   }
@@ -1520,13 +1519,13 @@ async function exportWorkbook(audience) {
     call.destroy();
     if (!path) throw new Error("Generate a roster first.");
     const name = audience === "staff"
-      ? `LabRoster-staff-rota-${stamp()}.xlsx`
-      : `LabRoster-manager-report-${stamp()}.xlsx`;
+      ? `Lab-Shift-Roster-staff-rota-${stamp()}.xlsx`
+      : `Lab-Shift-Roster-manager-report-${stamp()}.xlsx`;
     download(pyodide.FS.readFile(path), name);
     setStatus(`${label.charAt(0).toUpperCase()}${label.slice(1)} downloaded`,
               false);
   } catch (error) {
-    setStatus("LabRoster ready", false);
+    setStatus("Lab Shift Roster ready", false);
     showProblems("That export did not work.",
                  [{ message: friendly(error) }]);
   }

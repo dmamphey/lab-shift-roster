@@ -392,12 +392,37 @@ def test_the_staff_rota_does_not_disclose_management_information(demo_result):
             f"the staff rota discloses '{forbidden}'"
 
 
-def test_the_staff_rota_does_not_reveal_why_somebody_is_absent(demo_result):
-    """Showing S/L on a departmental rota would disclose sickness."""
-    staff, _ = _exports(demo_result)
-    text = _all_text(staff)
+def _cell_values(data):
+    """Every cell value, so a check can match whole values rather than substrings."""
+    workbook = load_workbook(io.BytesIO(data))
+    return [str(cell.value).strip() for name in workbook.sheetnames
+            for row in workbook[name].iter_rows()
+            for cell in row if cell.value is not None]
+
+
+@pytest.mark.parametrize("data_source", ["challenging", "balanced"])
+def test_the_staff_rota_does_not_reveal_why_somebody_is_absent(data_source):
+    """Showing S/L on a departmental rota would disclose sickness.
+
+    Matched against whole cell values, not as substrings: the section allocation
+    row holds initials, and a pair such as Ada Sample and Lior Proxy renders as
+    "AS/LP", which contains "S/L" without disclosing anything. Substring matching
+    here would fail on that and pass for the wrong reasons elsewhere.
+    """
+    workbook_bytes = (api.demo_workbook_bytes() if data_source == "challenging"
+                      else api.balanced_workbook_bytes())
+    result = api.generate(workbook_bytes)
+    staff = api.export_workbook(result["_scheduler"], result["_analysis"], "staff")
+
+    values = set(_cell_values(staff))
     for code in ["S/L", "A/L", "M/L", "C/L", "S/D"]:
-        assert code not in text, f"absence code '{code}' appears in the staff rota"
+        assert code not in values, \
+            f"absence code '{code}' appears as a cell value in the staff rota"
+
+    # And the manager export, for contrast, does record them.
+    manager = api.export_workbook(result["_scheduler"], result["_analysis"],
+                                  "manager")
+    assert "A/L" in set(_cell_values(manager))
 
 
 def test_the_manager_report_does_still_show_absence_codes(demo_result):
@@ -442,3 +467,24 @@ def test_both_exports_open_as_valid_workbooks(demo_result):
     for data in _exports(demo_result):
         assert data[:2] == b"PK"
         load_workbook(io.BytesIO(data))
+
+
+def test_the_staff_rota_identifies_what_produced_it(demo_result):
+    """A circulated rota should say where it came from, without saying more."""
+    staff, _ = _exports(demo_result)
+    text = _all_text(staff)
+    assert "Lab Shift Roster" in text
+    assert "free, secure and intelligent" in text
+
+
+@pytest.mark.parametrize("builder", ["blank_template_bytes",
+                                     "balanced_workbook_bytes",
+                                     "demo_workbook_bytes"])
+def test_every_workbook_carries_the_product_name_and_tagline(builder):
+    data = getattr(api, builder)()
+    text = _all_text(data)
+    assert "Lab Shift Roster" in text, f"{builder} does not name the product"
+    assert "free, secure and intelligent" in text, \
+        f"{builder} does not carry the tagline"
+    assert "LabRoster" not in text.replace("Lab Shift Roster", ""), \
+        f"{builder} still uses the old name"

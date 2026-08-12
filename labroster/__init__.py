@@ -1,4 +1,5 @@
-"""LabRoster — competency-aware workforce planning for diagnostic laboratories.
+"""Lab Shift Roster — a free, secure and intelligent workforce planning tool
+for diagnostic laboratories.
 
 The package is deliberately made of small, independently testable modules, but
 kept flat and dependency-light so the whole thing can be loaded into Pyodide and
@@ -14,10 +15,10 @@ __version__ = "1.1.0-beta"
 and the command line all read this rather than carrying their own copy."""
 
 VERSION_LABEL = "1.1 Beta"
-PRODUCT_NAME = "LabRoster"
+PRODUCT_NAME = "Lab Shift Roster"
 COMPANY_NAME = "Optymum SS"
 CONTACT_EMAIL = "projects@optymumss.com"
-TAGLINE = "Intelligent workforce planning for diagnostic laboratories"
+TAGLINE = "A free, secure and intelligent workforce planning tool for diagnostic laboratories."
 
 SCHEMA_VERSION = 2
 """Workbook schema version.  Written into the Settings sheet so an older

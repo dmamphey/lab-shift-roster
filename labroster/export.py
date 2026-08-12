@@ -153,8 +153,8 @@ def _instructions(workbook, scheduler, analysis) -> None:
     sheet = workbook.create_sheet("Instructions")
     config = scheduler.config
     details = config.details
-    row = _title(sheet, "LabRoster — draft roster", 8,
-                 "Competency-aware workforce planning for diagnostic laboratories")
+    row = _title(sheet, "Lab Shift Roster — draft roster", 8,
+                 "A free, secure and intelligent workforce planning tool for diagnostic laboratories.")
     sheet.column_dimensions["A"].width = 34
     sheet.column_dimensions["B"].width = 64
 
@@ -163,7 +163,7 @@ def _instructions(workbook, scheduler, analysis) -> None:
         bold=True, size=12, color="1F3864")
     row += 1
     sheet.cell(row=row, column=1,
-               value="Every roster LabRoster produces requires managerial review "
+               value="Every roster produced here requires managerial review "
                      "before use. It supports your decisions about staffing; it "
                      "does not make them, and it does not replace HR, payroll or "
                      "professional judgement.")
@@ -585,10 +585,13 @@ def _staff_notes(workbook, scheduler) -> None:
         row += 1
 
     row += 1
+    from . import PRODUCT_NAME, TAGLINE, VERSION_LABEL
     for line in [
         "A blank cell means you are not scheduled to work that day.",
         "Please raise any queries about your own rota with your line manager.",
         "This rota may be adjusted; check for a later version before relying on it.",
+        "",
+        f"Produced with {PRODUCT_NAME} {VERSION_LABEL}. {TAGLINE}",
     ]:
         cell = sheet.cell(row=row, column=1, value=line)
         cell.font = SMALL
