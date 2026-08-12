@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "user-guide.html"
 DEFAULT_OUTPUT = ROOT / "Lab-Shift-Roster-1.1-User-Guide.pdf"
 
-SITE = "https://dmamphey.github.io/lab-shift-roster/"
+SITE = "https://tools.optymumss.com/lab-shift-roster/"
 
 #: Where Chrome and Edge install themselves on Windows, then the usual names on
 #: PATH for macOS and Linux.  The first one that exists is used.
@@ -97,7 +97,15 @@ def build(browser: str, output: Path) -> int:
             return 1
 
         output.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(pdf, output)
+        try:
+            shutil.copyfile(pdf, output)
+        except PermissionError:
+            # Almost always the previous PDF still open in a viewer, which holds
+            # the file open for writing on Windows.
+            print(f"Cannot write {output.name}: the file is open in another "
+                  f"program.\nClose it (a PDF viewer, most likely) and run this "
+                  f"again.")
+            return 1
 
     size = output.stat().st_size
     print(f"Rendered with {Path(browser).name}")

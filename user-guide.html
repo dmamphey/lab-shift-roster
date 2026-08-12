@@ -165,6 +165,9 @@
     .hero .back { display: none; }
     .print-url { display: block; margin: 1.1rem 0 0; font-size: 9.5pt;
                  color: #dbeafc; }
+    /* On the hero gradient a blue link is unreadable, so this one is white and
+       underlined instead of taking the accent colour. */
+    .print-url a { color: #fff; text-decoration: underline; }
     .layout { grid-template-columns: minmax(0, 1fr); gap: 0; display: block; }
     nav.toc { position: static; max-height: none; overflow: visible;
               break-after: page; margin-bottom: 0; }
@@ -201,8 +204,8 @@
   <a class="back" href="index.html">&larr; Back to Lab Shift Roster</a>
   <a class="back" href="Lab-Shift-Roster-1.1-User-Guide.pdf">Download as PDF</a>
   <p class="print-url">Use the tool at
-     https://dmamphey.github.io/lab-shift-roster/ &mdash; nothing you enter leaves
-     your computer.</p>
+     <a href="https://tools.optymumss.com/lab-shift-roster/"
+        >https://tools.optymumss.com/lab-shift-roster</a>.</p>
 </header>
 
 <div class="layout">
