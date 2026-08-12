@@ -234,16 +234,18 @@ class Analysis:
     }
 
     def discipline_name(self, code: str) -> str:
-        """A discipline in words where the workbook gives one, otherwise the code."""
-        if not code:
-            return ""
-        for record in self.config.competencies:
-            if record.discipline.upper() == code.upper() and record.name:
-                return record.name
-        for bench in self.config.benches:
-            if bench.discipline.upper() == code.upper():
-                return bench.name
-        return code
+        """How a discipline is written for a manager.
+
+        Disciplines are shown by their short code — BT, HAEM, COAG, MORPH — because
+        that is the everyday shorthand in a diagnostic laboratory, and it keeps the
+        workbook and the interface using the same terms. Section names remain in
+        words, so an issue reads "Morphology cannot be covered" while the
+        requirement behind it reads "1 independently competent MORPH scientist".
+
+        This is the single place that decision is made, so it can be changed to
+        expand codes into full names without touching anything else.
+        """
+        return (code or "").upper()
 
     def check_shift_coverage(self) -> None:
         """Report coverage gaps as one problem per shift, per cause.
@@ -284,14 +286,21 @@ class Analysis:
             readable = self.discipline_name(discipline)
 
             if lead in ("competency", "bench"):
-                subject = benches[0] if benches else (readable or "the section")
+                # Name the section in the title where the workbook defines one,
+                # even if only the competency check failed: "Morphology cannot be
+                # covered" reads better than "MORPH cannot be covered", while the
+                # requirement line keeps the code the laboratory actually uses.
+                section = next((bench.name for bench in self.config.benches
+                                if bench.discipline.upper() == discipline), "")
+                subject = benches[0] if benches else (section or readable
+                                                      or "The section")
                 title = f"{subject} cannot be covered"
                 required = (f"{needed} independently competent "
-                            f"{readable or discipline} scientist"
+                            f"{readable} scientist"
                             f"{'s' if needed > 1 else ''}")
                 impact = (f"{subject} cannot be staffed on this shift."
                           if benches else
-                          f"The {readable or discipline} requirement for this "
+                          f"The {readable} requirement for this "
                           f"shift is not met.")
                 review = ("Consider moving a competent scientist onto this shift, "
                           "changing the deployment plan, or arranging additional "

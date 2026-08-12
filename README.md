@@ -130,6 +130,11 @@ Notes:
 - **Staff ID** must be unique; the other sheets refer to it
 - **Required Competencies** is written as discipline and number:
   `BT:1, HAEM:2, COAG:1`
+- Disciplines are referred to by their **short code** — `BT`, `HAEM`, `COAG`,
+  `MORPH` — throughout the workbook, the interface, the issues and the exports,
+  because that is the everyday shorthand in a diagnostic laboratory. Section
+  names stay in words, so an issue reads "Morphology cannot be covered" while the
+  requirement behind it reads "1 independently competent MORPH scientist".
 - The **Mon–Sun** columns on the Staff sheet are the days somebody normally
   works; leave all seven blank for a fully flexible member of staff
 - **Shift Codes** on the Benches sheet says which shifts a section must be

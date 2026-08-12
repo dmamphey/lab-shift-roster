@@ -196,3 +196,41 @@ def test_issue_payload_carries_the_consolidated_fields():
     assert critical
     assert any(issue.get("required") for issue in critical)
     assert any(issue.get("impact") for issue in critical)
+
+
+# --- discipline terminology -------------------------------------------------
+
+def test_disciplines_are_expressed_as_short_codes():
+    """BT, HAEM, COAG and MORPH are the everyday shorthand in a laboratory.
+
+    The requirement line must use the code, not an expanded competency name, so the
+    workbook and the interface stay in the same terms.
+    """
+    result = api.generate(api.demo_workbook_bytes())
+    text = " ".join(f"{issue['title']} {issue['explanation']} {issue['required']}"
+                    for issue in result["issues"])
+    for expanded in ("Blood film morphology scientist", "Haematology scientist",
+                     "Coagulation scientist", "Blood Transfusion scientist"):
+        assert expanded not in text, f"expanded name used instead of a code: {expanded}"
+    assert "MORPH scientist" in text or "HAEM scientist" in text
+
+
+def test_resilience_reports_disciplines_by_code():
+    result = api.generate(api.demo_workbook_bytes())
+    disciplines = {item["discipline"] for item in result["resilience"]}
+    assert disciplines == {"BT", "HAEM", "COAG", "MORPH"}
+
+
+def test_section_names_still_appear_in_the_issue_title():
+    """Codes for the requirement, the section's own name for the headline."""
+    config = make_config(
+        [make_staff("A"), make_staff("B")],
+        requirements=[ShiftRequirement("C", min_staff=2)],
+        benches=[Bench(name="Morphology", discipline="MORPH", min_staff=1)],
+        competencies=[competent("A", "HAEM")],
+        days=1)
+    _, analysis = build(config)
+    issue = [item for item in analysis.issues
+             if item.severity == CRITICAL and item.day == MONDAY][0]
+    assert issue.title == "Morphology cannot be covered"
+    assert "MORPH" in issue.required
