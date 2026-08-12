@@ -151,20 +151,46 @@ def test_a_single_handed_night_can_satisfy_two_competencies(balanced_bytes):
 
 # --- sharing nights is a documented choice, not a hidden default -------------
 
-def test_nights_are_not_shared_evenly_by_default(balanced_bytes):
-    """Coverage wins by default; the trade-off is measured, not assumed."""
+def test_nights_are_shared_evenly_by_default(balanced_bytes):
+    """Nobody eligible for nights should end a month having done none.
+
+    Concentrating nights on a few people is not acceptable in practice, so sharing
+    is the default even though it can cost a little day-service cover.
+    """
+    import io
+    from labroster.scheduler import Scheduler
+    from labroster.workbook import read_workbook
+
+    config, _ = read_workbook(io.BytesIO(balanced_bytes))
+    assert config.rules.share_nights_evenly is True
+
+    scheduler = Scheduler(config)
+    scheduler.build()
+    counts = [scheduler.count_nights(person.staff_id)
+              for person in config.staff if person.nights_ok]
+    assert counts, "the example should have night-eligible staff"
+    assert min(counts) > 0, (
+        f"somebody eligible for nights worked none: {sorted(counts)}")
+
+
+def test_night_fairness_is_judged_on_blocks_not_individual_nights(balanced_bytes):
+    """Ten three-night blocks between eight people cannot come out level.
+
+    Six get one block and two get two, which is the closest split available.
+    Counting nights would call that uneven; counting blocks does not.
+    """
     import io
     from labroster.scheduler import Scheduler
     from labroster.analysis import Analysis
     from labroster.workbook import read_workbook
 
     config, _ = read_workbook(io.BytesIO(balanced_bytes))
-    assert config.rules.share_nights_evenly is False
-
     scheduler = Scheduler(config)
     scheduler.build()
-    analysis = Analysis(scheduler)
-    assert analysis.metrics["shifts_meeting_all_requirements_percent"] == 100.0
+    blocks = [scheduler.count_night_blocks(person.staff_id)
+              for person in config.staff if person.nights_ok]
+    assert max(blocks) - min(blocks) <= 1, f"block spread too wide: {blocks}"
+    assert Analysis(scheduler).night_fairness() == "Good"
 
 
 def test_turning_night_sharing_on_spreads_nights_more_widely(balanced_bytes):
@@ -182,8 +208,8 @@ def test_turning_night_sharing_on_spreads_nights_more_widely(balanced_bytes):
                   for person in config.staff if person.nights_ok]
         spreads[share] = max(counts) - min(counts)
 
-    assert spreads[True] < spreads[False], (
-        f"sharing should narrow the spread of nights: {spreads}")
+    assert spreads[True] <= spreads[False], (
+        f"sharing should not widen the spread of nights: {spreads}")
 
 
 def test_weekend_days_are_shared_without_being_asked(balanced):

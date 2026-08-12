@@ -291,7 +291,7 @@ class Reader:
                              get("Random seed", 42)), 42),
             rotation_warning_days=_to_int(
                 get("Section rotation warning (days)", 56), 56),
-            share_nights_evenly=_is_yes(get("Share nights evenly", "N")),
+            share_nights_evenly=_is_yes(get("Share nights evenly", "Y"), True),
         )
         if rules.minimum_rest_hours < 0:
             self.add(ERROR, "Rules",

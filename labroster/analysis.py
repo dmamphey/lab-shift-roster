@@ -760,8 +760,13 @@ class Analysis:
                               for p in eligible])
 
     def night_fairness(self) -> str:
+        """Judged on blocks of nights, which is the unit nights are rostered in.
+
+        Counting individual nights would report a level share as uneven whenever
+        the number of blocks does not divide by the number of eligible staff.
+        """
         eligible = [person for person in self.config.staff if person.nights_ok]
-        return self.fairness([self.scheduler.count_nights(p.staff_id)
+        return self.fairness([self.scheduler.count_night_blocks(p.staff_id)
                               for p in eligible])
 
     # -- dashboard -------------------------------------------------------

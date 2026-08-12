@@ -225,6 +225,25 @@ class Scheduler:
                    if sid == staff_id
                    and self.shift_by_code[a.shift_code].is_night)
 
+    def count_night_blocks(self, staff_id: str) -> int:
+        """How many separate runs of nights somebody has worked.
+
+        Nights are rostered in blocks, so the number of *blocks* is the fair unit
+        rather than the number of nights.  Ten three-night blocks shared between
+        eight people cannot come out level however it is done: six get one block
+        and two get two.  Counting nights would call that uneven when it is in fact
+        the closest split available.
+        """
+        blocks = 0
+        previous_was_night = False
+        for day in self.days:
+            shift = self.shift_on(staff_id, day)
+            is_night = shift is not None and shift.is_night
+            if is_night and not previous_was_night:
+                blocks += 1
+            previous_was_night = is_night
+        return blocks
+
     def count_weekend_days(self, staff_id: str) -> int:
         return sum(1 for (day, sid) in self.assignments
                    if sid == staff_id and self.is_weekend(day))
@@ -432,13 +451,8 @@ class Scheduler:
                     self.rng.random(),
                 )
 
-            # Nights keep hours owed first, with night count as the tie-break.
-            # Spreading night *blocks* more widely also spreads the recovery days
-            # that follow them, and each block takes five days out of one person's
-            # availability. Pushing them onto more people fragments cover for the
-            # day service, which measurably costs shifts their requirements. Cover
-            # is the point of the roster; fairness is a soft target, so it yields
-            # here rather than the other way round.
+            # Nights fall back to hours owed only when a manager has turned
+            # sharing off; the branch above is the default.
             return (
                 -self.hours_deficit(staff_id),      # most below target first
                 self.count_nights(staff_id) if shift.is_night else 0,

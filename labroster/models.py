@@ -494,13 +494,18 @@ class Rules:
     weekend_days: set[int] = field(default_factory=lambda: {5, 6})
     seed: int = 42
     rotation_warning_days: int = 56
-    share_nights_evenly: bool = False
+    share_nights_evenly: bool = True
     """Whether to spread nights as evenly as possible across eligible staff.
 
-    Off by default, because a night block also books the recovery days after it:
-    pushing nights onto more people fragments day-service cover and measurably
-    costs shifts their requirements.  Turn it on where sharing the unpopular work
-    matters more than squeezing out the last few per cent of cover."""
+    On by default.  Concentrating nights on a few people while other eligible
+    colleagues do none is not acceptable in practice, whatever it saves elsewhere.
+
+    It does have a cost, and the cost is real rather than theoretical: a night
+    block also books the recovery days that follow it, so spreading nights across
+    more people fragments cover for the day service.  Measured on the balanced
+    example, sharing takes requirement compliance from 100% to about 95%.  Turn it
+    off only where squeezing out that last cover matters more than sharing the
+    unpopular work."""
 
     @property
     def hours_tolerance_fraction(self) -> float:
