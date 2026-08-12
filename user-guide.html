@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User guide — Lab Shift Roster 1.1 Beta</title>
+<meta name="description" content="Complete user guide to Lab Shift Roster: filling in the workbook, generating a draft roster, reading the dashboard and issues, adjusting assignments by hand, and exporting for staff or managers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2317395f'/%3E%3Cpath d='M22 32 L32 22 L42 32 L32 42 Z' fill='%231878c4'/%3E%3Cpath d='M32 8 L38 14 L32 20 L26 14 Z' fill='%231878c4'/%3E%3Cpath d='M32 44 L38 50 L32 56 L26 50 Z' fill='%231878c4'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --brand-blue: #1878c4; --brand-navy: #17395f; --brand-blue-tint: #e7f1fa;
+    --bg: #f4f7fb; --panel: #ffffff; --ink: #101720; --muted: #55616f;
+    --line: #d3dce6; --accent: var(--brand-blue); --heading: var(--brand-navy);
+    --soft: var(--brand-blue-tint); --focus: #0b5fff;
+    --critical: #9c1f2b; --critical-bg: #fbe6e8; --critical-line: #e4a9b0;
+    --review: #7d4a00; --review-bg: #fdf3e0; --review-line: #e3c489;
+    --passed: #17603a; --passed-bg: #e4f4ea; --passed-line: #a3d5b7;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+    --hero: linear-gradient(135deg, #17395f 0%, #12629f 55%, #1878c4 100%);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --brand-blue: #4fa3e0; --brand-navy: #a9c6e6; --brand-blue-tint: #16283a;
+      --bg: #0d141c; --panel: #151d27; --ink: #e8eef5; --muted: #97a4b4;
+      --line: #263241; --heading: #cfe1f4; --focus: #7aa7ff;
+      --critical: #f3a1aa; --critical-bg: #2c1a1d; --critical-line: #5d3238;
+      --review: #e8bd74; --review-bg: #2b2417; --review-line: #5b4a26;
+      --passed: #8ad9ab; --passed-bg: #17291f; --passed-line: #2f5540;
+      --hero: linear-gradient(135deg, #0f2742 0%, #16456f 55%, #1c5c92 100%);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%;
+         scroll-padding-top: 1rem; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         padding: 0 1rem 5rem; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .hero { background: var(--hero); color: #fff; border-radius: 14px;
+          padding: 2rem 2rem 2.1rem; margin: 1.75rem 0 1.5rem; }
+  .hero h1 { font-size: 2.1rem; margin: 0 0 .35rem; letter-spacing: -.03em; }
+  .hero p { margin: 0 0 .5rem; color: #dbeafc; max-width: 68ch; }
+  .hero .back { display: inline-block; margin-top: .9rem; color: #fff;
+                font-weight: 600; border: 1px solid rgba(255,255,255,.5);
+                padding: .5rem 1rem; border-radius: 8px; text-decoration: none; }
+  .hero .back:hover { background: rgba(255,255,255,.14); }
+
+  /* minmax(0, 1fr) rather than 1fr: a 1fr track cannot shrink below its
+     content's minimum width, so one wide table would drag the whole column
+     past the viewport and take the sidebar with it. min-width on the children
+     is the same guard applied to the grid items themselves. */
+  .layout { display: grid; gap: 1.5rem;
+            grid-template-columns: 250px minmax(0, 1fr);
+            align-items: start; }
+  .layout > * { min-width: 0; }
+  nav.toc { position: sticky; top: 1rem; background: var(--panel);
+            border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem;
+            max-height: calc(100vh - 2rem); overflow-y: auto; }
+  nav.toc h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+               color: var(--muted); margin: 0 0 .6rem; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  /* The number and its title sit on one line: a block-level anchor would push
+     the title onto the row below the counter. */
+  nav.toc li { counter-increment: toc; margin-bottom: .28rem; font-size: .88rem;
+               display: flex; gap: .4rem; align-items: baseline; }
+  nav.toc li::before { content: counter(toc) "."; color: var(--muted);
+                       font-variant-numeric: tabular-nums; flex: none;
+                       min-width: 1.3em; text-align: right; }
+  nav.toc a { text-decoration: none; padding: .12rem 0; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section.card { background: var(--panel); border: 1px solid var(--line);
+                 border-radius: 12px; padding: 1.5rem 1.6rem; margin-bottom: 1.1rem; }
+  h2 { font-size: 1.35rem; color: var(--heading); margin: 0 0 .6rem;
+       letter-spacing: -.02em; }
+  h3 { font-size: 1.05rem; color: var(--heading); margin: 1.5rem 0 .5rem; }
+  h4 { font-size: .95rem; margin: 1.1rem 0 .4rem; }
+  p { margin: 0 0 .9rem; max-width: 76ch; }
+  ul, ol { margin: 0 0 .9rem; padding-left: 1.4rem; max-width: 76ch; }
+  li { margin-bottom: .35rem; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--soft);
+         padding: .1rem .35rem; border-radius: 4px; }
+  .lede { font-size: 1.03rem; color: var(--muted); }
+
+  table { border-collapse: collapse; width: 100%; font-size: .9rem;
+          margin: 0 0 1rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--muted); font-weight: 700; }
+  td code { white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+
+  .note, .warn, .good {
+    border-radius: 9px; padding: .9rem 1.1rem; margin: 0 0 1.1rem;
+    border: 1px solid; border-left-width: 4px; font-size: .95rem;
+  }
+  .note { background: var(--soft); border-color: var(--line);
+          border-left-color: var(--brand-blue); }
+  .warn { background: var(--review-bg); border-color: var(--review-line);
+          border-left-color: var(--review); color: var(--review); }
+  .warn strong { color: var(--review); }
+  .good { background: var(--passed-bg); border-color: var(--passed-line);
+          border-left-color: var(--passed); color: var(--passed); }
+  .good strong { color: var(--passed); }
+  .note p:last-child, .warn p:last-child, .good p:last-child { margin-bottom: 0; }
+
+  .pill { display: inline-block; border-radius: 999px; padding: .1rem .6rem;
+          font-size: .78rem; font-weight: 700; border: 1px solid; }
+  .pill.critical { color: var(--critical); background: var(--critical-bg);
+                   border-color: var(--critical-line); }
+  .pill.review { color: var(--review); background: var(--review-bg);
+                 border-color: var(--review-line); }
+  .pill.passed { color: var(--passed); background: var(--passed-bg);
+                 border-color: var(--passed-line); }
+
+  footer { color: var(--muted); font-size: .88rem; border-top: 1px solid var(--line);
+           margin-top: 2rem; padding-top: 1.2rem; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    nav.toc { position: static; max-height: none; }
+  }
+  @media (max-width: 640px) {
+    body { padding: 0 .7rem 3.5rem; font-size: 15px; }
+    .hero { padding: 1.4rem 1.25rem 1.5rem; margin-top: 1rem; }
+    .hero h1 { font-size: 1.65rem; }
+    section.card { padding: 1.15rem 1.15rem; }
+    h2 { font-size: 1.18rem; }
+    table { font-size: .84rem; }
+    th, td { padding: .4rem .45rem; }
+  }
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    .hero { background: none; color: #000; border: 1px solid #999; }
+    .hero .back, nav.toc { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    section.card { border: 1px solid #999; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Lab Shift Roster — user guide</h1>
+  <p>A free, secure and intelligent workforce planning tool for diagnostic
+     laboratories.</p>
+  <p>This guide covers everything from filling in the workbook to exporting a
+     finished rota. Version 1.1 Beta.</p>
+  <a class="back" href="index.html">&larr; Back to Lab Shift Roster</a>
+</header>
+
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#what">What it does</a></li>
+    <li><a href="#privacy">Your data</a></li>
+    <li><a href="#quickstart">Quick start</a></li>
+    <li><a href="#workbooks">Choosing a workbook</a></li>
+    <li><a href="#details">Roster Details</a></li>
+    <li><a href="#rules">Rules</a></li>
+    <li><a href="#staff">Staff</a></li>
+    <li><a href="#patterns">Week Patterns</a></li>
+    <li><a href="#competencies">Competencies</a></li>
+    <li><a href="#shifts">Shifts</a></li>
+    <li><a href="#requirements">Shift Requirements</a></li>
+    <li><a href="#benches">Benches</a></li>
+    <li><a href="#leave">Leave &amp; Leave Types</a></li>
+    <li><a href="#generate">Generating a roster</a></li>
+    <li><a href="#dashboard">Reading the dashboard</a></li>
+    <li><a href="#issues">Working through issues</a></li>
+    <li><a href="#preview">Roster preview</a></li>
+    <li><a href="#hours">Contracted hours</a></li>
+    <li><a href="#resilience">Resilience</a></li>
+    <li><a href="#adjust">Adjusting by hand</a></li>
+    <li><a href="#exports">Exporting</a></li>
+    <li><a href="#decides">How it decides</a></li>
+    <li><a href="#problems">If something goes wrong</a></li>
+    <li><a href="#limits">What it does not do</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ================================================================= -->
+<section class="card" id="what">
+  <h2>1. What it does</h2>
+  <p class="lede">Lab Shift Roster builds a draft rota for a diagnostic laboratory
+     from a spreadsheet of your workforce, then tells you where that rota is thin.</p>
+  <p>The question it exists to answer is: <strong>do I have the right people, with
+     the right competencies, in the right laboratory areas, at the right
+     time?</strong></p>
+  <p>It understands the things that make laboratory rostering awkward:</p>
+  <ul>
+    <li>Contracted hours and FTE, so a ten-hour night is not treated as
+        equivalent to a seven-and-a-half hour day</li>
+    <li>Part-time and alternating working patterns</li>
+    <li>Competency as a status with an expiry date, not a tick-box</li>
+    <li>Grade, seniority and competence as three separate things</li>
+    <li>Sections that each need their own person standing at them</li>
+    <li>Rest intervals measured from real shift times, including across midnight</li>
+  </ul>
+  <div class="warn">
+    <p><strong>Every roster it produces is a draft for you to review.</strong> It
+       supports your decisions; it does not make them. It is not artificial
+       intelligence — it is a rules engine that fills the shifts you define and
+       tells you when it cannot.</p>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="privacy">
+  <h2>2. Your data</h2>
+  <div class="good">
+    <p><strong>Your workbook never leaves your device.</strong> Lab Shift Roster
+       runs entirely inside your browser. Nothing is uploaded, there is no account,
+       and no roster is stored on any external database. Once the page has loaded
+       you can disconnect from the network and it will still work.</p>
+  </div>
+  <p>What that means in practice:</p>
+  <ul>
+    <li>The workbook you choose is read by the page itself, not sent anywhere</li>
+    <li>The rota you download is written on your own computer</li>
+    <li>Closing the tab discards everything; nothing persists</li>
+  </ul>
+  <p>No absolute security claims are made about your own device or network. Please
+     include only the workforce information the tool needs. Do not add unnecessary
+     personal details, and <strong>never add patient-identifiable
+     information</strong> — none is required.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="quickstart">
+  <h2>3. Quick start</h2>
+  <p>If you want to see what it produces before entering any real data, open the
+     application and press <strong>Try the balanced example</strong>. That generates
+     a rota from a fictional department in a few seconds.</p>
+  <p>For your own laboratory:</p>
+  <ol>
+    <li><strong>Download a workbook</strong> — the blank one, or an example to work
+        from</li>
+    <li><strong>Fill it in</strong> — staff, competencies, shifts, requirements,
+        leave</li>
+    <li><strong>Upload it</strong> — choose the file, nothing is transmitted</li>
+    <li><strong>Generate a draft roster</strong></li>
+    <li><strong>Review the issues</strong> — start with Critical</li>
+    <li><strong>Export</strong> — a staff rota to circulate, a manager report to
+        keep</li>
+  </ol>
+  <p>Expect the first attempt to raise issues. That is the tool doing its job: it
+     is showing you where the plan is thin, not failing.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="workbooks">
+  <h2>4. Choosing a workbook</h2>
+  <p>Three downloads are offered, and they serve different purposes.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Download</th><th>Contains</th><th>Use it when</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Blank workbook</strong></td>
+          <td>All the headings, guidance and dropdown lists. No staff, no
+              competencies, no leave. Shifts, requirements and sections carry a
+              common starting configuration you can adjust.</td>
+          <td>You are setting up your own laboratory</td></tr>
+      <tr><td><strong>Balanced example</strong></td>
+          <td>A well-staffed fictional department of fourteen. Produces full
+              coverage with no critical issues.</td>
+          <td>You want to see what a healthy result looks like</td></tr>
+      <tr><td><strong>Challenging example</strong></td>
+          <td>A fictional department with deliberate gaps: thin morphology cover,
+              an expired competency, part-time constraints and leave.</td>
+          <td>You want to see what the tool detects</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <p>Every name, competency and date in both examples is invented. Neither
+       contains real staff information, and the challenging example is labelled as
+       deliberately difficult so nobody mistakes it for a typical result.</p>
+  </div>
+  <p>The workbook has eleven sheets. The next sections cover each one. You do not
+     need to complete every column — most have sensible behaviour when left
+     blank — and the guidance below says which ones matter.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="details">
+  <h2>5. Roster Details</h2>
+  <p>Who the rota is for and what period it covers. These appear on the exported
+     workbook, so they are worth filling in properly if the rota will be
+     circulated.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Setting</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Rota name</td><td>Defaults to <code>Laboratory Staff Rota</code></td></tr>
+      <tr><td>Organisation</td><td>Appears in the export heading</td></tr>
+      <tr><td>Department</td><td>For example <em>Blood Sciences</em></td></tr>
+      <tr><td>Site</td><td>Useful where a trust runs several laboratories</td></tr>
+      <tr><td>Prepared by</td><td>Recorded in the manager report</td></tr>
+      <tr><td><strong>Roster period start</strong></td>
+          <td>Required. Enter as <code>dd/mm/yyyy</code></td></tr>
+      <tr><td><strong>Roster period end</strong></td>
+          <td>Required. Inclusive</td></tr>
+      <tr><td>Workbook version</td>
+          <td>Leave alone. Lets the tool recognise an older workbook</td></tr>
+    </tbody>
+  </table></div>
+  <p>A month is the usual period. Longer works, but produces a very wide
+     spreadsheet — you will be warned beyond a year.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="rules">
+  <h2>6. Rules</h2>
+  <p>Your laboratory's own operating rules. Every one is a setting you control.</p>
+  <div class="warn">
+    <p><strong>These are planning settings, not compliance determinations.</strong>
+       The rest interval in particular is whatever your organisation has agreed.
+       Lab Shift Roster reports a <em>configured rest rule conflict</em>; it never
+       claims a shift is unlawful.</p>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Rule</th><th>Default</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Minimum rest hours between shifts</td><td><code>11</code></td>
+          <td>Measured from real finish and start times. A late ending 21:00
+              followed by an early starting 07:00 is ten hours and will be
+              prevented</td></tr>
+      <tr><td>Maximum consecutive days</td><td><code>6</code></td>
+          <td>Longest unbroken run of working days. Can be overridden per
+              person</td></tr>
+      <tr><td>Maximum consecutive nights</td><td><code>4</code></td>
+          <td>Longest unbroken run of nights</td></tr>
+      <tr><td>Night block length</td><td><code>3</code></td>
+          <td>Nights are rostered in blocks rather than scattered</td></tr>
+      <tr><td>Recovery days after nights</td><td><code>2</code></td>
+          <td>Days off following a block of nights</td></tr>
+      <tr><td>Hours tolerance (%)</td><td><code>10</code></td>
+          <td>How far from contracted hours before somebody is flagged</td></tr>
+      <tr><td>Competency expiry warnings (days)</td><td><code>30, 60, 90</code></td>
+          <td>Warn when a competency expires within these periods</td></tr>
+      <tr><td>Max simultaneous bench assignments</td><td><code>1</code></td>
+          <td>How many sections one person may cover at once. Leave at 1</td></tr>
+      <tr><td>Cross cover allowed</td><td><code>N</code></td>
+          <td>Reserved for a future release</td></tr>
+      <tr><td>Weekend days</td><td><code>Saturday, Sunday</code></td>
+          <td>Which days count as the weekend</td></tr>
+      <tr><td>Share nights evenly</td><td><code>Y</code></td>
+          <td>Spread nights across everyone eligible. See the note below</td></tr>
+      <tr><td>Section rotation warning (days)</td><td><code>56</code></td>
+          <td>Warn if somebody has not worked a section for this long</td></tr>
+      <tr><td>Alternative roster number</td><td><code>42</code></td>
+          <td>Changes which of several valid drafts you get. You never need to
+              edit this — use the button instead</td></tr>
+    </tbody>
+  </table></div>
+  <h3>A note on sharing nights</h3>
+  <p>Sharing nights evenly is on by default, because concentrating them on a few
+     people while eligible colleagues do none is not acceptable in practice. It has
+     a genuine cost: a block of nights also books the recovery days after it, so
+     spreading nights across more people fragments cover for the day service. On the
+     balanced example, turning sharing on moves requirement compliance from 100% to
+     about 95%. Set it to <code>N</code> only if that last few per cent of cover
+     matters more to you than sharing the unpopular work.</p>
+  <p>There is deliberately <strong>no senior band threshold</strong>. Seniority is
+     recorded per person on the Staff sheet, and a shift that needs a particular
+     grade uses <code>Min Band</code> on the Requirements sheet. A Band 7 is not
+     automatically senior, and a senior is not automatically competent in
+     everything.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="staff">
+  <h2>7. Staff</h2>
+  <p>One row per person. This is the most important sheet, and the one worth taking
+     time over.</p>
+  <h3>Identity and role</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Staff ID</strong></td>
+          <td>Required and must be unique. Every other sheet refers to it. Anything
+              consistent works — <code>S01</code>, initials, a payroll number</td></tr>
+      <tr><td><strong>Name</strong></td><td>Required. Shown on the rota</td></tr>
+      <tr><td>Job Title</td><td>Shown in the manager report</td></tr>
+      <tr><td>Band</td><td>NHS band or local grade. <code>8a</code> sorts above
+          <code>8</code>, which sorts above <code>7</code></td></tr>
+      <tr><td>Registered BMS</td><td><code>Y</code>/<code>N</code>. Used by the
+          <em>Min Registered BMS</em> requirement</td></tr>
+      <tr><td>Senior</td><td><code>Y</code>/<code>N</code>. Recorded explicitly,
+          never inferred from band</td></tr>
+      <tr><td>Shift Coordinator</td><td><code>Y</code>/<code>N</code>. Checked
+          separately from seniority</td></tr>
+      <tr><td>Trainee</td><td><code>Y</code>/<code>N</code>. Counted against
+          <em>Max Trainees</em></td></tr>
+    </tbody>
+  </table></div>
+  <h3>Hours</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Contracted Weekly Hours</strong></td>
+          <td>Drives how much work each person is given. This is the main workload
+              control</td></tr>
+      <tr><td>FTE</td><td>Used only if weekly hours are blank, applied to a
+          37.5-hour week</td></tr>
+      <tr><td>Working Pattern</td><td>Free text label such as <em>Part time</em>.
+          Descriptive only</td></tr>
+      <tr><td>Max Hours This Period</td><td>Hard ceiling for the whole period.
+          Blank means no ceiling</td></tr>
+      <tr><td>Max Weekly Hours</td><td>Hard ceiling per week</td></tr>
+    </tbody>
+  </table></div>
+  <h3>When they are available</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Mon – Sun</strong></td>
+          <td><code>Y</code>/<code>N</code> per day: the days this person is
+              available. <strong>Leave all seven blank for somebody fully
+              flexible.</strong> These are hard constraints — a blank Saturday
+              means they can never be rostered on a Saturday</td></tr>
+      <tr><td>Pattern Cycle (weeks)</td>
+          <td>Set to <code>2</code> for an alternating fortnight, then use the Week
+              Patterns sheet</td></tr>
+      <tr><td>Earliest Start / Latest Finish</td>
+          <td>Times such as <code>09:00</code> and <code>16:00</code>. A shift that
+              falls outside them is never offered</td></tr>
+      <tr><td>Max Days Per Week</td><td>Personal cap</td></tr>
+      <tr><td>Max Consecutive Days</td><td>Overrides the organisational rule for
+          this person</td></tr>
+      <tr><td>Works Nights / Works Weekends</td>
+          <td><code>Y</code>/<code>N</code> eligibility</td></tr>
+      <tr><td>Max Nights / Max Weekends</td><td>Caps for the period</td></tr>
+      <tr><td>Group</td><td>Splits the rota into labelled blocks, such as
+          <em>Main</em> and <em>Bank</em></td></tr>
+      <tr><td>Restrictions / Notes</td><td>Your own reminders. Restrictions appear
+          in the manager report only, never on the staff rota</td></tr>
+    </tbody>
+  </table></div>
+  <div class="warn">
+    <p><strong>The commonest setup mistake.</strong> The Mon–Sun columns are
+       <em>availability</em>, not a record of contracted days. If you mark somebody
+       as working Monday to Friday only, they can never be rostered at a weekend
+       however <em>Works Weekends</em> is set. If they are flexible, leave those
+       columns blank.</p>
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="patterns">
+  <h2>8. Week Patterns</h2>
+  <p>Only needed for staff who work alternating weeks. Set
+     <em>Pattern Cycle (weeks)</em> on the Staff sheet first, then add one row here
+     per person per week.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Staff ID</th><th>Week</th><th>Mon</th><th>Tue</th><th>Wed</th>
+      <th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+    <tbody>
+      <tr><td>S06</td><td>1</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td>
+          <td>N</td><td>N</td></tr>
+      <tr><td>S06</td><td>2</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>Y</td>
+          <td>N</td><td>N</td></tr>
+    </tbody>
+  </table></div>
+  <p>Weeks are counted from the Monday of the week the roster period starts, so a
+     period beginning midweek does not shift the pattern. If a cycle is declared but
+     a week is left out, week 1 is used for it rather than making that person
+     unavailable.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="competencies">
+  <h2>9. Competencies</h2>
+  <p>One row per person per discipline. This is what lets the tool answer whether a
+     section can actually be staffed.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Staff ID</strong></td><td>Must match the Staff sheet</td></tr>
+      <tr><td>Name</td><td>For your readability; the ID is what is used</td></tr>
+      <tr><td><strong>Discipline</strong></td>
+          <td>Short code: <code>BT</code>, <code>HAEM</code>, <code>COAG</code>,
+              <code>MORPH</code>. Whatever codes you use must match the Benches and
+              Requirements sheets</td></tr>
+      <tr><td>Competency</td><td>The name of the specific competency, such as
+          <em>Crossmatch and electronic issue</em></td></tr>
+      <tr><td><strong>Status</strong></td><td>See the table below</td></tr>
+      <tr><td>Date Achieved / Review Date</td><td>Your records</td></tr>
+      <tr><td><strong>Expiry Date</strong></td>
+          <td>Past this date the competency stops counting, whatever the status
+              says</td></tr>
+      <tr><td>Trainer / Assessor</td><td><code>Y</code>/<code>N</code>. Used by
+          <em>Min Trainers</em></td></tr>
+      <tr><td>Result Authoriser</td><td><code>Y</code>/<code>N</code>. Checked
+          separately from competence</td></tr>
+    </tbody>
+  </table></div>
+  <h3>What each status means</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Status</th><th>Counts as cover?</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Not Trained</td><td><span class="pill critical">No</span></td>
+          <td>Has not started</td></tr>
+      <tr><td>In Training</td><td><span class="pill critical">No</span></td>
+          <td>Learning, and needs somebody with them</td></tr>
+      <tr><td>Supervised</td><td><span class="pill critical">No</span></td>
+          <td>Working towards sign-off, still supervised</td></tr>
+      <tr><td>Competent</td><td><span class="pill passed">Yes</span></td>
+          <td>Can work the discipline unsupervised</td></tr>
+      <tr><td>Trainer</td><td><span class="pill passed">Yes</span></td>
+          <td>Competent, and can train others</td></tr>
+      <tr><td>Assessor</td><td><span class="pill passed">Yes</span></td>
+          <td>Competent, and can assess others</td></tr>
+      <tr><td>Expired</td><td><span class="pill critical">No</span></td>
+          <td>Lapsed and needs reassessment</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <p>Only <strong>Competent</strong>, <strong>Trainer</strong> and
+       <strong>Assessor</strong> satisfy a requirement. Somebody
+       <em>In Training</em> or <em>Supervised</em> needs a colleague present, so
+       counting them as cover would overstate what the laboratory can actually
+       deliver. An expired record never counts, even if the status column still
+       says <em>Competent</em>.</p>
+  </div>
+  <p>Somebody may hold several records in one discipline. The strongest current one
+     governs, so an old <em>In Training</em> row does not hide a later
+     <em>Competent</em> one.</p>
+  <p>Authorisation is checked <strong>independently</strong> of competence. A
+     result authoriser must also be currently competent in that discipline — the
+     flag alone is not enough.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="shifts">
+  <h2>10. Shifts</h2>
+  <p>The shifts your laboratory runs, defined by real clock times.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Code</td><td>Short label shown in every cell of the rota, such as
+          <code>C</code></td></tr>
+      <tr><td>Name</td><td>Full name, such as <em>Core</em></td></tr>
+      <tr><td><strong>Start / End</strong></td>
+          <td>24-hour times. Length is worked out from these, so the hours can
+              never disagree with the times</td></tr>
+      <tr><td>Days</td><td><code>All</code>, <code>Weekday</code> or
+          <code>Weekend</code></td></tr>
+      <tr><td>Night Shift</td><td><code>Y</code> brings in the night block,
+          recovery days and consecutive-night rules</td></tr>
+      <tr><td>Colour / Font Colour</td><td>Six-digit hex. The cells show the actual
+          colour and the Preview column shows how the shift will look</td></tr>
+    </tbody>
+  </table></div>
+  <p>The starting configuration is:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Code</th><th>Name</th><th>Times</th><th>Hours</th><th>Days</th>
+      <th>Night</th></tr></thead>
+    <tbody>
+      <tr><td>E</td><td>Early</td><td>07:00–15:00</td><td>8</td><td>Weekday</td><td>No</td></tr>
+      <tr><td>C</td><td>Core</td><td>09:00–17:30</td><td>8.5</td><td>Weekday</td><td>No</td></tr>
+      <tr><td>L</td><td>Late</td><td>13:00–21:00</td><td>8</td><td>Weekday</td><td>No</td></tr>
+      <tr><td>N</td><td>Night</td><td>21:00–07:00</td><td>10</td><td>All</td><td>Yes</td></tr>
+      <tr><td>W</td><td>Weekend Day</td><td>09:00–17:30</td><td>8.5</td><td>Weekend</td><td>No</td></tr>
+    </tbody>
+  </table></div>
+  <p>A shift crossing midnight is handled correctly: <code>21:00</code> to
+     <code>07:00</code> is ten hours, not a negative number. A shift that starts and
+     finishes at the same time is rejected as a data-entry error.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="requirements">
+  <h2>11. Shift Requirements</h2>
+  <p>What each shift needs in order to be safe to run. Every condition is checked
+     <strong>independently</strong> — a senior does not satisfy a transfusion
+     competency, and a competent scientist does not satisfy a coordinator
+     requirement.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Shift Code</td><td>Must match the Shifts sheet</td></tr>
+      <tr><td>Days</td><td><code>All</code>, <code>Weekday</code>,
+          <code>Weekend</code>, or a single day. A day-specific row wins over a
+          general one, so you can set a different Saturday minimum without
+          restating everything</td></tr>
+      <tr><td><strong>Min Staff</strong></td><td>Minimum headcount</td></tr>
+      <tr><td>Min Registered BMS</td><td>How many must be registered</td></tr>
+      <tr><td>Min Senior</td><td>How many must be marked Senior</td></tr>
+      <tr><td>Min Band + Staff At Min Band</td>
+          <td>Used together: <em>Min Band</em> <code>6</code> with
+              <em>Staff At Min Band</em> <code>1</code> means at least one person at
+              Band 6 or above</td></tr>
+      <tr><td>Min Coordinators</td><td>How many shift coordinators</td></tr>
+      <tr><td>Min Trainers</td><td>How many trainers or supervisors</td></tr>
+      <tr><td>Max Trainees</td><td>Cap on trainees. Blank or 0 means no cap</td></tr>
+      <tr><td><strong>Required Competencies</strong></td>
+          <td>Discipline and number, comma separated:
+              <code>BT:1, HAEM:2, COAG:1</code></td></tr>
+      <tr><td>Required Authorisers</td><td>Same format:
+          <code>BT:1</code></td></tr>
+    </tbody>
+  </table></div>
+  <h3>How competency requirements are counted</h3>
+  <p>There is an important distinction here, and getting it wrong is the usual
+     cause of an impossible requirement.</p>
+  <ul>
+    <li><strong>Sections need distinct people.</strong> A section is a physical
+        place somebody stands. Three sections each needing one competent person need
+        <em>three different people</em>, even if one person holds all three
+        competencies.</li>
+    <li><strong>A shift's own competency list does not.</strong>
+        <code>BT:1, HAEM:1</code> on a single-handed night shift means
+        <em>one person competent in both</em>. Asking for two distinct people on a
+        one-person shift could never be satisfied.</li>
+  </ul>
+  <p>Because sections drive distinct people, section demand also drives staffing: a
+     shift with a headcount minimum of one will still roster three people if three
+     sections need cover.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="benches">
+  <h2>12. Benches</h2>
+  <p>The laboratory sections that need somebody actually standing at them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Bench</td><td>The section name in words, such as
+          <em>Blood Transfusion</em>. This is what appears in issue headlines</td></tr>
+      <tr><td>Discipline</td><td>The competency code it needs, such as
+          <code>BT</code></td></tr>
+      <tr><td>Days</td><td><code>All</code>, <code>Weekday</code> or
+          <code>Weekend</code></td></tr>
+      <tr><td>Min Staff</td><td>How many people during the week</td></tr>
+      <tr><td>Min Staff Weekend</td><td>A reduced weekend service.
+          <code>0</code> closes the section at weekends</td></tr>
+      <tr><td><strong>Shift Codes</strong></td>
+          <td>Which shifts the section must be staffed during, such as
+              <code>C, L, W</code>. Blank means every shift except nights</td></tr>
+      <tr><td>Requires Authoriser</td><td><code>Y</code> means only a result
+          authoriser can cover it</td></tr>
+      <tr><td>Rotation Interval (days)</td><td>Used by the rotation warning</td></tr>
+    </tbody>
+  </table></div>
+  <div class="warn">
+    <p><strong>Watch the Shift Codes column.</strong> If you leave it blank, every
+       non-night shift is expected to staff that section. A two-person late shift
+       cannot cover four sections, so you will get gaps. List only the shifts the
+       section genuinely runs during.</p>
+  </div>
+  <p>One person covers one section at a time. Coverage is judged on who is
+     <em>actually allocated</em>, not on who happens to be on duty holding the right
+     competency — so a multi-skilled scientist is never counted twice.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="leave">
+  <h2>13. Leave and Leave Types</h2>
+  <p>Nobody is ever rostered on a day they are recorded as absent.</p>
+  <h3>Leave</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Staff ID</td><td>Must match the Staff sheet</td></tr>
+      <tr><td>From / To</td><td>Both dates are included in the absence</td></tr>
+      <tr><td>Type</td><td>A code from the Leave Types sheet</td></tr>
+      <tr><td>Credited Hours</td>
+          <td>Optional. States the hours for this absence explicitly instead of
+              deriving them. Pro-rated if the absence straddles the period edge</td></tr>
+      <tr><td>Reason</td><td>Your own note. Never appears on the staff rota</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Why credited hours matter</h3>
+  <p>Without them, somebody who takes a week off still shows a shortfall against
+     their contracted hours, and the rota tries to fill it — giving them a full
+     workload squeezed into fewer days. Crediting the absence closes that gap, so
+     hours lost to leave are not clawed back with extra shifts.</p>
+  <p>Hours are therefore reported as five figures:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Figure</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Target</td><td>Contracted weekly hours scaled to the period</td></tr>
+      <tr><td>Worked</td><td>Hours actually on shifts</td></tr>
+      <tr><td>Credited absence</td><td>Hours credited for time away</td></tr>
+      <tr><td>Total accounted</td><td>Worked + credited. This is what balancing
+          compares</td></tr>
+      <tr><td>Variance</td><td>Total accounted minus target</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Leave Types</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Code / Label</td><td>Shown on the rota and in the key</td></tr>
+      <tr><td>Colour / Font Colour</td><td>Hex, displayed as the actual colour</td></tr>
+      <tr><td>Counts Towards Contracted Hours</td>
+          <td><code>Y</code> credits the hours, so no make-up shifts are
+              added</td></tr>
+      <tr><td>Credited Hours Method</td>
+          <td><code>Working pattern</code> derives them from that person's own
+              days, <code>Fixed hours per day</code> uses the column below,
+              <code>Not credited</code> credits nothing</td></tr>
+      <tr><td>Fixed Hours Per Day</td><td>Used with the fixed method</td></tr>
+    </tbody>
+  </table></div>
+  <p>The supplied codes are <code>A/L</code>, <code>S/L</code>, <code>C/L</code>,
+     <code>M/L</code> and <code>S/D</code>, all crediting hours by default. This is
+     a planning setting, not a statement of HR or pay policy — organisations treat
+     sickness and long-term absence differently, so it is configurable rather than
+     assumed.</p>
+  <p>Because credited hours come from each person's own pattern, a part-timer absent
+     for a week is credited a part-time week.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="generate">
+  <h2>14. Generating a roster</h2>
+  <p>Choose your completed workbook, then press <strong>Generate draft
+     roster</strong>. Everything happens on your own machine, so nothing is
+     uploaded and the speed depends on your computer rather than a connection.</p>
+  <p>If the workbook needs correcting you will get a list of everything wrong at
+     once, each naming the sheet, the row and the column heading. Fix them, save, and
+     choose the file again — you do not have to reload the page.</p>
+  <h3>Advanced settings</h3>
+  <p>Optional. You can override the start and end dates without editing the
+     workbook, which is useful for producing next month from the same file. The
+     <em>Roster generation ID</em> is recorded with each draft so a particular rota
+     can be reproduced; you never need to change it by hand.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="dashboard">
+  <h2>15. Reading the dashboard</h2>
+  <p>The headline is the <strong>roster status</strong>: <em>No issues found</em>,
+     <em>Review suggested</em>, or <em>Attention required</em>.</p>
+  <h3>The two coverage figures</h3>
+  <p>These are different questions and it matters not to confuse them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Figure</th><th>What it measures</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Staffing slot coverage</strong></td>
+          <td>Whether the positions are occupied. A headcount measure only</td></tr>
+      <tr><td><strong>Shifts meeting all configured requirements</strong></td>
+          <td>Whether each shift satisfies <em>everything</em> you set: staffing,
+              registration, seniority, band, coordinator, competencies,
+              authorisers, the trainee limit, section coverage, availability and
+              rest</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <p>These routinely differ, and the gap is the useful part. On the challenging
+       example, <strong>100%</strong> of positions are occupied while only
+       <strong>63%</strong> of shifts satisfy everything configured. A full shift is
+       not necessarily a safe one.</p>
+  </div>
+  <h3>The other tiles</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Tile</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Unfilled shifts</td><td>Shifts below their minimum headcount</td></tr>
+      <tr><td>Uncovered sections</td><td>Section slots with nobody competent
+          allocated</td></tr>
+      <tr><td>Senior cover gaps</td><td>Shifts requiring a senior with none</td></tr>
+      <tr><td>Competency gaps</td><td>Missing competencies or authorisers</td></tr>
+      <tr><td>Rest rule conflicts</td><td>Gaps shorter than your configured
+          interval</td></tr>
+      <tr><td>Outside target hours</td><td>People beyond your hours tolerance</td></tr>
+      <tr><td>Competencies expiring / expired</td><td>Against your warning
+          thresholds</td></tr>
+      <tr><td>Single points of failure</td><td>Disciplines with only one
+          independently competent member of staff</td></tr>
+      <tr><td>Weekend / night fairness</td><td><em>Good</em>, <em>Review</em> or
+          <em>Uneven</em></td></tr>
+    </tbody>
+  </table></div>
+  <p>Fairness is a coarse judgement to review, not a score to optimise — there is no
+     single correct fairness formula. Night fairness is measured in <em>blocks</em>,
+     because ten three-night blocks shared between eight people cannot come out
+     level, and counting individual nights would call the closest available split
+     unfair.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="issues">
+  <h2>16. Working through issues</h2>
+  <p>Issues open with counts by severity and the <strong>main causes</strong>
+     ordered by frequency, so you can see where to start rather than reading a
+     list.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Severity</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill critical">Critical</span></td>
+          <td>Resolve before publishing: an unfilled shift, a missing competency or
+              authoriser, absent senior cover, somebody rostered while
+              unavailable</td></tr>
+      <tr><td><span class="pill review">Review</span></td>
+          <td>Worth a look: materially off contracted hours, uneven distribution,
+              a competency expiring, thin section cover, a single point of
+              failure</td></tr>
+      <tr><td><span class="pill passed">Passed</span></td>
+          <td>Checked and satisfied. Useful evidence that a rule was applied</td></tr>
+    </tbody>
+  </table></div>
+  <p>Each issue states the date, shift and section, what was
+     <strong>required</strong>, what was <strong>available</strong>, the
+     <strong>impact</strong>, and a suggested review point. For example:</p>
+  <div class="note">
+    <p><strong>Morphology cannot be covered</strong><br>
+       Core. Morphology cannot be staffed on this shift.<br>
+       <em>Required:</em> 1 independently competent MORPH scientist &nbsp;
+       <em>Available:</em> 0<br>
+       <em>What to check:</em> consider moving a competent scientist onto this
+       shift, changing the deployment plan, or arranging additional cover.</p>
+  </div>
+  <p>Related warnings with the same underlying cause are combined. A missing
+     morphology scientist produces one issue, not two — one for the competency and
+     another for the section that consequently could not be staffed.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="preview">
+  <h2>17. Roster preview and section coverage</h2>
+  <p>Staff down the side, dates across the top, shift codes in the cells, coloured
+     as you configured them. The name column stays put while you scroll sideways.</p>
+  <ul>
+    <li><strong>Search staff</strong> by name, role or band</li>
+    <li><strong>Filter by shift</strong> to see who is on nights, for instance</li>
+    <li><strong>Narrow the dates</strong> to focus on a week</li>
+    <li>Hover a cell for the shift name, times and any section allocation</li>
+    <li>A cell marked <code>*</code> was adjusted by hand</li>
+    <li>A blank cell means not scheduled</li>
+  </ul>
+  <p>The <strong>Section coverage</strong> panel below lists each date and shift
+     with the section, how many people were required and allocated, a status of
+     <em>Covered</em>, <em>Review</em> or <em>Not covered</em>, and who is on it.
+     Filter by date or section.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="hours">
+  <h2>18. Contracted hours</h2>
+  <p>Per person: contracted weekly hours, target for the period, worked, credited
+     absence, total accounted, variance, percentage of target, and a status.</p>
+  <p>Work is distributed by <strong>hours</strong>, not by counting shifts. Twenty
+     ten-hour nights total 200 hours where twenty seven-and-a-half hour days total
+     150 — treating those as equivalent would be the wrong answer. Shift counts are
+     reported as a statistic only.</p>
+  <p>Somebody mildly under target is often just a part-timer whose available days do
+     not line up with demand. Somebody well over is worth investigating: it usually
+     means they are one of very few people who satisfy a constrained requirement.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="resilience">
+  <h2>19. Workforce resilience</h2>
+  <p>How exposed you are if one person is unavailable. Two different risks are
+     reported separately, because they are not the same thing.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Level</th><th>Question</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Workforce</strong></td>
+          <td>How many people in the whole department can do this?</td>
+          <td>Only one morphology-competent scientist exists</td></tr>
+      <tr><td><strong>Shift</strong></td>
+          <td>How many are on duty for a particular shift?</td>
+          <td>Only one transfusion authoriser is scheduled on Tuesday</td></tr>
+    </tbody>
+  </table></div>
+  <p>At workforce level, one competent person is
+     <span class="pill critical">Critical</span>, two is
+     <span class="pill review">Review</span>, three or more is
+     <span class="pill passed">Passed</span>. Shift-level thinness is reported once
+     per shift and discipline with a count of affected dates, rather than once per
+     day — a thinly covered section is one problem to think about, not thirty.</p>
+  <p><strong>Section rotation</strong> is also tracked: if somebody competent in a
+     discipline was not allocated to it during the period, that is flagged against
+     your configured interval. No rotation rule is invented; the report simply says
+     how long it has been.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="adjust">
+  <h2>20. Adjusting a roster by hand</h2>
+  <p>The draft is a starting point. To change it, use
+     <strong>Adjust an assignment</strong>:</p>
+  <ol>
+    <li>Choose the <strong>date</strong> and <strong>shift</strong></li>
+    <li>Choose somebody to <strong>take off</strong>, somebody to
+        <strong>put on</strong>, or both</li>
+    <li>Add a reason if you want a record of why</li>
+    <li>Press <strong>Apply change</strong></li>
+  </ol>
+  <p>Only people who could actually work that shift are offered, each listed with
+     their current competencies. Anybody excluded is counted with the reason — on
+     leave, not their working day, cannot work nights or weekends, or already
+     working elsewhere — so you can see why a name is missing rather than
+     wondering.</p>
+  <p>Every check then re-runs: staffing, competency and section coverage, hours,
+     fairness, rest rules, resilience, the dashboard and both exports. If your change
+     creates a problem, you will see it immediately.</p>
+  <div class="note">
+    <p><strong>Taking somebody off means they are not rostered anywhere that
+       day.</strong> Without that, the tool would simply put them back when it
+       refilled the shift. To move somebody between shifts, take them off and put
+       them on the other shift in the same change.</p>
+  </div>
+  <p>Manual changes are marked as such, listed with an <strong>Undo</strong> for
+     each and an <strong>Undo all</strong>, and they survive
+     <strong>Generate alternative roster</strong> — they are never silently
+     overwritten. Undoing everything returns exactly the automatic roster.</p>
+  <h3>Generate alternative roster</h3>
+  <p>Produces a different valid draft from the same information, keeping your
+     workbook, date range and rules. Useful when a rota is technically fine but you
+     would rather the work fell differently. If you have manual changes you will be
+     warned before they are replaced.</p>
+  <h3>Start new roster</h3>
+  <p>Clears the loaded workbook, the draft, the issues, the filters and any manual
+     changes, and returns to the upload state. No page reload, and the tool stays
+     ready to use.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="exports">
+  <h2>21. Exporting</h2>
+  <p>One draft, two audiences. Both come from the same roster, so exporting one does
+     not change the other or lose your manual adjustments.</p>
+  <h3>Export staff rota</h3>
+  <p>A simplified workbook for circulating to the team: <em>Roster</em>,
+     <em>Section Allocations</em> and <em>Notes</em>. Clean, printable, and
+     deliberately limited to what somebody needs in order to read their own rota.</p>
+  <div class="good">
+    <p><strong>What it withholds, on purpose.</strong> Competency records,
+       individual hours, fairness analysis, workforce vulnerabilities, private
+       working restrictions, leave reasons — and the <em>type</em> of any absence.
+       Absence appears as an ordinary non-working day, because printing
+       <code>S/L</code> on a departmental rota discloses that somebody was off
+       sick.</p>
+  </div>
+  <h3>Export manager workbook</h3>
+  <p>The full analytical record, in ten sheets:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Sheet</th><th>Contains</th></tr></thead>
+    <tbody>
+      <tr><td>Instructions</td><td>Period, status, and the rules that were
+          applied</td></tr>
+      <tr><td>Roster</td><td>The rota, with section allocations and per-shift
+          staffing counts</td></tr>
+      <tr><td>Staff</td><td>Who was included, grades, patterns, restrictions</td></tr>
+      <tr><td>Competencies</td><td>The register, with what counts as cover</td></tr>
+      <tr><td>Shift Requirements</td><td>What each shift was required to
+          provide</td></tr>
+      <tr><td>Bench Allocations</td><td>Section cover day by day, with status</td></tr>
+      <tr><td>Issues</td><td>Everything to review, by severity</td></tr>
+      <tr><td>Hours Summary</td><td>Target, worked, credited, accounted,
+          variance</td></tr>
+      <tr><td>Fairness Summary</td><td>How the unpopular shifts are shared</td></tr>
+      <tr><td>Competency Expiry</td><td>Expired and expiring records</td></tr>
+    </tbody>
+  </table></div>
+  <p>Both are formatted to be usable: freeze panes, filters, sensible column widths,
+     landscape and fit-to-width for printing, and a legend. Status is always carried
+     by a word as well as a colour, so nothing depends on colour alone.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="decides">
+  <h2>22. How it decides</h2>
+  <p>Useful to know when a result surprises you.</p>
+  <h4>Hard rules it will not break</h4>
+  <p>If a shift cannot be filled without breaking one of these, it is left short and
+     reported:</p>
+  <ul>
+    <li>Nobody is rostered on a day they are recorded as absent</li>
+    <li>One shift per person per day</li>
+    <li>Nobody is rostered outside their working pattern or available hours</li>
+    <li>No shift the day after a night, and the configured rest interval is
+        honoured in both directions</li>
+    <li>Maximum consecutive days and nights</li>
+    <li>Nights only for staff marked as night-capable; weekends likewise</li>
+    <li>Personal caps on nights, weekends, days per week and hours</li>
+  </ul>
+  <h4>Order of work</h4>
+  <ol>
+    <li><strong>Nights first.</strong> They are the most constrained and they
+        generate the recovery days everything else has to work around</li>
+    <li><strong>Then day shifts, hardest first</strong> — the shift with the fewest
+        eligible people goes first</li>
+    <li><strong>Within a shift, the rarest capability first</strong>, so a scarce
+        competency is not spent on a slot somebody else could have filled</li>
+    <li><strong>Then top up</strong> to the minimum headcount</li>
+    <li><strong>Then allocate sections</strong>, one person to one section</li>
+  </ol>
+  <h4>Who gets offered work</h4>
+  <p>Among eligible people, whoever is furthest below their contracted target goes
+     first. For weekend days, whoever has done fewest weekends leads instead —
+     ordering by hours alone concentrated weekends on full-time staff, because a
+     larger target means a larger shortfall. Nights are shared the same way when
+     <em>Share nights evenly</em> is on.</p>
+  <p>Fairness comparisons are only ever made within the group eligible for that
+     work, so somebody who cannot work nights is never counted as having an unfairly
+     light night load.</p>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="problems">
+  <h2>23. If something goes wrong</h2>
+  <p>The workbook is validated before any rota is produced, and every problem is
+     reported at once so you can fix them in one pass. Each names the sheet, the row
+     and the column heading rather than an internal error.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Message</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>That file could not be opened as an Excel workbook</td>
+          <td>It may be a different file type, an old <code>.xls</code>, or damaged.
+              Download a fresh workbook</td></tr>
+      <tr><td>This workbook was made with an earlier version</td>
+          <td>It lacks competency, hours or requirement information that cannot be
+              safely guessed. Download the latest blank workbook and copy your staff
+              into it</td></tr>
+      <tr><td>The Staff sheet is missing the '…' column</td>
+          <td>Add the heading, or start from a fresh workbook</td></tr>
+      <tr><td>Staff ID '…' is used twice</td>
+          <td>IDs must be unique; the other sheets refer to them</td></tr>
+      <tr><td>'…' is not a competency status</td>
+          <td>Use one of the seven listed statuses. The dropdown offers them</td></tr>
+      <tr><td>… is marked as not working on any day of the week</td>
+          <td>Mark at least one day, or clear all seven to mean fully flexible</td></tr>
+      <tr><td>… has a latest finish at or before their earliest start</td>
+          <td>No shift could ever fit; correct one of the two times</td></tr>
+      <tr><td>Shift '…' starts and finishes at the same time</td>
+          <td>Check the start and finish times</td></tr>
+      <tr><td>Shift '…' has no entry on the Shift Requirements sheet</td>
+          <td>Add a row saying how many people it needs, or no staff will be
+              rostered onto it</td></tr>
+      <tr><td>Nobody holds a '…' competency</td>
+          <td>A section can never be covered. Check the discipline code matches the
+              Competencies sheet</td></tr>
+      <tr><td>Could not write … the file is open in another program</td>
+          <td>Close it in Excel and try again</td></tr>
+    </tbody>
+  </table></div>
+  <h3>The rota looks wrong rather than broken</h3>
+  <ul>
+    <li><strong>Somebody is never rostered.</strong> Check their Mon–Sun
+        availability, night and weekend eligibility, and any personal caps</li>
+    <li><strong>Nobody is rostered at weekends.</strong> Their availability pattern
+        probably excludes Saturday and Sunday</li>
+    <li><strong>A section is never covered.</strong> Check the discipline code
+        matches, that somebody is <em>Competent</em> rather than
+        <em>In Training</em>, that the competency has not expired, and whether the
+        section requires an authoriser</li>
+    <li><strong>Everybody is over or under target hours.</strong> Your total shift
+        demand does not match your total contracted hours. Adjust the requirements
+        or the hours</li>
+    <li><strong>Too many people are under target.</strong> Often a sign that a
+        requirement routes work to a small group, leaving others idle</li>
+  </ul>
+</section>
+
+<!-- ================================================================= -->
+<section class="card" id="limits">
+  <h2>24. What it does not do</h2>
+  <ul>
+    <li><strong>It does not make staffing decisions.</strong> Every rota is a draft
+        for managerial review</li>
+    <li><strong>It is not artificial intelligence.</strong> It is a rules engine.
+        Where it cannot fill a shift without breaking a rule you set, it leaves the
+        shift short and says so</li>
+    <li><strong>It does not determine legal or regulatory compliance.</strong> Rest
+        intervals and other limits are rules you configure</li>
+    <li><strong>It does not replace</strong> local workforce policies, HR systems,
+        payroll, ESR or professional judgement</li>
+    <li>There are no user accounts, no external database, no cloud storage and no
+        integrations</li>
+  </ul>
+  <h3>Not yet supported</h3>
+  <ul>
+    <li><strong>Bank holidays</strong> are not modelled as a distinct category</li>
+    <li><strong>Section rotation</strong> is reported but is not yet an input to
+        scheduling</li>
+    <li><strong>Part-shift sections</strong> — morphology 09:00–13:00 then
+        coagulation 13:00–17:00 — are not yet available; sections are covered for a
+        whole shift</li>
+    <li>The engine produces a workable draft reliably but does not prove it is the
+        best possible one. A human-built rota may sometimes be better</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Lab Shift Roster 1.1 Beta — user guide. Every roster produced is a draft
+     requiring managerial review.</p>
+  <p><a href="index.html">Back to Lab Shift Roster</a></p>
+</footer>
+
+</main>
+</div>
+</div>
+</body>
+</html>
