@@ -259,3 +259,11 @@ every category of warning, and tests assert that it does.
 - The generated workbook is created locally for download
 - No absolute security guarantees are made
 - Patient-identifiable data is never required and should never be added
+
+## A note on GitHub Pages
+
+The repository contains an empty `.nojekyll` file at its root. Without it, GitHub
+Pages runs the files through Jekyll, which **silently excludes anything whose name
+begins with an underscore** — including `labroster/__init__.py`. The site then
+loads but cannot start, reporting that part of LabRoster is missing. Keep that
+file if you deploy to Pages.
