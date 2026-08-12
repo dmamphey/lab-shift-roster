@@ -11,28 +11,45 @@
 <meta property="og:title" content="LabRoster — intelligent workforce planning for diagnostic laboratories">
 <meta property="og:description" content="Create draft laboratory rosters around staffing, competencies, working patterns and bench coverage. Workforce data is processed locally in your browser.">
 <meta name="twitter:card" content="summary">
-<!-- Favicon is inline so the application stays self-contained and works from any
-     subdirectory. Replace with the Optymum SS icon asset when available. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3864'/%3E%3Cpath d='M14 16h7v24h13v8H14z' fill='%23fff'/%3E%3Ccircle cx='44' cy='22' r='7' fill='none' stroke='%2300b0f0' stroke-width='5'/%3E%3C/svg%3E">
+<!-- Inline favicon so the application stays self-contained and works from any
+     subdirectory. Uses the brand diamond motif on Optymum SS navy. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2317395f'/%3E%3Cpath d='M22 32 L32 22 L42 32 L32 42 Z' fill='%231878c4'/%3E%3Cpath d='M32 8 L38 14 L32 20 L26 14 Z' fill='%231878c4'/%3E%3Cpath d='M32 44 L38 50 L32 56 L26 50 Z' fill='%231878c4'/%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #f5f7fa; --panel: #ffffff; --ink: #14181d; --muted: #56606c;
-    --line: #d5dbe3; --accent: #1f3864; --accent-ink: #ffffff;
-    --soft: #eaeff7; --focus: #0b5fff;
+    /* Optymum SS brand palette, taken from the wordmark. */
+    --brand-blue: #1878c4;
+    --brand-blue-dark: #12629f;
+    --brand-blue-tint: #e7f1fa;
+    --brand-navy: #17395f;
+    --brand-navy-deep: #0f2742;
+
+    --bg: #f4f7fb; --panel: #ffffff; --ink: #101720; --muted: #55616f;
+    --line: #d3dce6; --accent: var(--brand-blue); --accent-ink: #ffffff;
+    --heading: var(--brand-navy);
+    --soft: var(--brand-blue-tint); --focus: #0b5fff;
     --critical: #9c1f2b; --critical-bg: #fbe6e8; --critical-line: #e4a9b0;
     --review: #7d4a00; --review-bg: #fdf3e0; --review-line: #e3c489;
     --passed: #17603a; --passed-bg: #e4f4ea; --passed-line: #a3d5b7;
-    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.1);
+    --shadow: 0 1px 2px rgba(15,39,66,.06), 0 2px 8px rgba(15,39,66,.07);
+    --hero: linear-gradient(135deg, #17395f 0%, #12629f 55%, #1878c4 100%);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #11151a; --panel: #191e25; --ink: #e9edf2; --muted: #9ba5b2;
-      --line: #2c333d; --accent: #8fb0e8; --accent-ink: #11151a;
-      --soft: #212a36; --focus: #7aa7ff;
+      --brand-blue: #4fa3e0;
+      --brand-blue-dark: #2b86c8;
+      --brand-blue-tint: #16283a;
+      --brand-navy: #a9c6e6;
+      --brand-navy-deep: #0b1622;
+
+      --bg: #0d141c; --panel: #151d27; --ink: #e8eef5; --muted: #97a4b4;
+      --line: #263241; --accent: var(--brand-blue); --accent-ink: #08111a;
+      --heading: #cfe1f4;
+      --soft: var(--brand-blue-tint); --focus: #7aa7ff;
       --critical: #f3a1aa; --critical-bg: #2c1a1d; --critical-line: #5d3238;
       --review: #e8bd74; --review-bg: #2b2417; --review-line: #5b4a26;
       --passed: #8ad9ab; --passed-bg: #17291f; --passed-line: #2f5540;
       --shadow: none;
+      --hero: linear-gradient(135deg, #0f2742 0%, #16456f 55%, #1c5c92 100%);
     }
   }
   * { box-sizing: border-box; }
@@ -46,16 +63,32 @@
   a { color: var(--accent); }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-  header { padding: 2rem 0 1.25rem; }
-  .brand { margin-bottom: 1.1rem; }
-  .brand-mark { height: 34px; width: auto; color: var(--ink); display: block; }
-  h1 { font-size: 2.05rem; margin: 0 0 .2rem; letter-spacing: -.025em; }
-  .tagline { font-size: 1.12rem; color: var(--ink); font-weight: 600;
-             margin: 0 0 .5rem; max-width: 62ch; }
-  .lede-secondary { font-size: .98rem; color: var(--muted); margin: 0 0 1.25rem;
-                    max-width: 64ch; }
-  h2 { font-size: 1.15rem; margin: 0 0 .25rem; }
-  h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .07em;
+  header { padding: 1.75rem 0 1.5rem; }
+  .brand { margin-bottom: 1.25rem; }
+  .brand-mark { height: 62px; width: auto; display: block; }
+  @media (prefers-color-scheme: dark) {
+    /* The wordmark is dark navy on white; lift it so it reads on a dark page. */
+    .brand-mark { filter: brightness(1.35) saturate(1.1); }
+  }
+
+  .hero {
+    background: var(--hero); color: #fff; border-radius: 14px;
+    padding: 1.9rem 2rem 2rem; margin-bottom: 1.5rem;
+    box-shadow: 0 6px 22px rgba(15,39,66,.18);
+  }
+  .hero h1 { font-size: 2.4rem; margin: 0 0 .3rem; letter-spacing: -.03em;
+             color: #fff; }
+  .hero .tagline { font-size: 1.16rem; font-weight: 600; margin: 0 0 .9rem;
+                   color: #eaf4fd; max-width: 60ch; }
+  .hero .pitch { font-size: 1rem; margin: 0; color: #cfe4f6; max-width: 72ch;
+                 line-height: 1.6; }
+  @media (max-width: 640px) {
+    .hero { padding: 1.4rem 1.25rem 1.5rem; }
+    .hero h1 { font-size: 1.85rem; }
+  }
+  h2 { font-size: 1.16rem; margin: 0 0 .25rem; color: var(--heading);
+       letter-spacing: -.01em; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
        color: var(--muted); margin: 0 0 .7rem; }
   p { margin: 0 0 .85rem; }
   .hint { color: var(--muted); font-size: .88rem; }
@@ -69,9 +102,10 @@
 
   .panel {
     background: var(--panel); border: 1px solid var(--line);
-    border-radius: 10px; padding: 1.35rem; margin-bottom: 1.25rem;
+    border-radius: 12px; padding: 1.4rem 1.5rem; margin-bottom: 1.1rem;
     box-shadow: var(--shadow);
   }
+  .panel > h2:first-child { display: flex; align-items: baseline; gap: .55rem; }
   .steps { counter-reset: step; list-style: none; padding: 0; margin: 0;
            display: grid; gap: .5rem 1.25rem;
            grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
@@ -80,7 +114,7 @@
   .steps li::before {
     content: counter(step); position: absolute; left: 0; top: -1px;
     width: 1.45rem; height: 1.45rem; border-radius: 50%;
-    background: var(--soft); color: var(--accent); font-weight: 700;
+    background: var(--brand-blue); color: #fff; font-weight: 700;
     font-size: .78rem; display: grid; place-items: center;
   }
 
@@ -123,7 +157,8 @@
 
   .verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem;
              margin-bottom: 1.1rem; }
-  .verdict .big { font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; }
+  .verdict .big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em;
+                  color: var(--heading); }
   .pill { display: inline-flex; align-items: center; gap: .35rem;
           border-radius: 999px; padding: .18rem .7rem; font-size: .8rem;
           font-weight: 700; border: 1px solid; }
@@ -138,8 +173,8 @@
            grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
   .tile { background: var(--bg); border: 1px solid var(--line);
           border-radius: 9px; padding: .7rem .85rem; }
-  .tile b { display: block; font-size: 1.5rem; line-height: 1.15;
-            letter-spacing: -.02em; }
+  .tile b { display: block; font-size: 1.55rem; line-height: 1.15;
+            letter-spacing: -.025em; color: var(--heading); }
   .tile span { font-size: .78rem; color: var(--muted); display: block;
                margin-top: .1rem; }
   .tile.bad b { color: var(--critical); }
@@ -176,7 +211,8 @@
                                      border-right: 1px solid var(--line);
                                      padding: .32rem .4rem; text-align: center;
                                      white-space: nowrap; }
-  table.roster thead th { background: var(--soft); position: sticky; top: 0;
+  table.roster thead th { background: var(--soft); color: var(--heading);
+                          position: sticky; top: 0;
                           z-index: 2; font-size: .76rem; }
   table.roster th.person, table.roster td.person {
     position: sticky; left: 0; z-index: 3; background: var(--panel);
@@ -224,22 +260,21 @@
 <div class="wrap">
 
 <header>
-  <!-- Placeholder wordmark. Swap the <svg> for the real Optymum SS asset. -->
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 200 40" role="img"
-         aria-label="Optymum SS, the company that develops LabRoster">
-      <rect x="0" y="4" width="32" height="32" rx="7" fill="#1f3864"/>
-      <circle cx="16" cy="20" r="8" fill="none" stroke="#00b0f0" stroke-width="4"/>
-      <text x="42" y="26" font-family="system-ui, sans-serif" font-size="17"
-            font-weight="700" fill="currentColor">Optymum<tspan
-            fill="#00b0f0"> SS</tspan></text>
-    </svg>
+    <img class="brand-mark" src="assets/optymum-ss-logo.svg"
+         alt="Optymum SS, Chartered Scientists — the company that develops LabRoster"
+         width="320" height="70">
   </div>
-  <h1>LabRoster</h1>
-  <p class="tagline">Intelligent workforce planning for diagnostic laboratories.</p>
-  <p class="lede-secondary">Create draft laboratory rosters around staffing
-     levels, competencies, working patterns, shift requirements and bench
-     coverage.</p>
+
+  <div class="hero">
+    <h1>LabRoster</h1>
+    <p class="tagline">A secure and intelligent workforce planning tool for
+       diagnostic laboratories.</p>
+    <p class="pitch">Stop wasting hours on lab scheduling. Set up your laboratory
+       data once to generate draft rosters in minutes. Simply input your staffing
+       levels, competencies, shift patterns, and bench coverage to automate your
+       scheduling forever.</p>
+  </div>
 
   <div class="privacy">
     <strong>Your workforce data stays on your device.</strong>
