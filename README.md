@@ -102,12 +102,98 @@ Deployment targets, all static:
 
 No conventional Python server is needed or wanted.
 
-### Runtime dependencies
+### Self-hosting the runtime
 
-The Pyodide runtime and the openpyxl wheel are currently loaded from a public
-CDN. In NHS-managed environments that means additional domains may need to be
-reachable. Self-hosting them so everything is served from one trusted domain is
-planned but **not yet implemented** — see *Known limitations*.
+By default the Python runtime loads from a public CDN, which keeps the repository
+small and needs no download step for development or the GitHub Pages demo. For an
+NHS-managed deployment that is usually the wrong trade: every extra domain is
+another firewall exception. So LabRoster can serve everything from one domain.
+
+```bash
+python tools/fetch_runtime.py
+```
+
+That writes **13.7 MB** into `vendor/`. The page detects it automatically and
+stops contacting the CDN — verified: with `vendor/` present, loading the
+application and generating a roster contacts **no host other than the one serving
+the page**. The technical section of the footer states which runtime is in use.
+
+`vendor/` is deliberately **git-ignored**. Third-party binaries are a deployment
+artefact, not source: committing 14 MB of them would bloat every clone, and they
+would need re-committing on every Pyodide upgrade.
+
+| File | Size | Why it is needed |
+| --- | --- | --- |
+| `pyodide/pyodide.asm.wasm` | 9.62 MB | The Python interpreter, compiled to WebAssembly |
+| `pyodide/python_stdlib.zip` | 2.23 MB | Python standard library |
+| `pyodide/pyodide.asm.js` | 1.17 MB | WebAssembly loader and runtime glue |
+| `pyodide/micropip`, `packaging` | 0.31 MB | Installs the wheels below; resolved via Pyodide's lock file, so these must sit beside the runtime |
+| `pyodide/pyodide-lock.json` | 0.10 MB | Package index Pyodide reads |
+| `pyodide/pyodide.js`, `.mjs` | 0.03 MB | Entry points |
+| `wheels/openpyxl` | 0.24 MB | Reads and writes the workbooks |
+| `wheels/et_xmlfile` | 0.02 MB | openpyxl dependency |
+| **Total** | **13.7 MB** | |
+
+**Deployment.** Copy the whole folder, `vendor/` included, to the web root — for
+example `tools.optymumss.com/lab-shift-roster/`. All paths are relative, so a
+project subdirectory works without configuration. No server-side component is
+involved.
+
+**Caching.** The runtime files are immutable for a given Pyodide version, so serve
+`vendor/` with a long `Cache-Control: max-age` (a year is reasonable) and leave
+`index.html` and `labroster/` short-lived so application updates are picked up. The
+first visit transfers about 14 MB; later visits come from the browser cache.
+
+**Updating.** Change `PYODIDE_VERSION` in `tools/fetch_runtime.py`, and
+`PYODIDE_VERSION` in `index.html` to match, then re-run the script with `--force`.
+Check the wheel filenames in the new `pyodide-lock.json`, since they are version
+pinned.
+
+**Licences.** Everything fetched permits redistribution: Pyodide and micropip under
+MPL 2.0, the CPython standard library under the PSF licence, `packaging` under
+Apache 2.0/BSD, `openpyxl` and `et_xmlfile` under MIT. The script writes
+`vendor/LICENCES.txt` alongside the files so the notices travel with them.
+
+## Two exports
+
+One generated draft, two audiences.
+
+**Export staff rota** — Roster, Section Allocations and Notes. For circulating to
+the team: who is working, when, and in which section. It deliberately withholds
+competency records, individual hours, fairness analysis, workforce
+vulnerabilities, working restrictions, and the reason for anybody's absence.
+Absence appears as an ordinary non-working day, because printing `S/L` on a
+departmental rota discloses sickness.
+
+**Export manager report** — all ten analytical sheets, including Issues, Hours
+Summary, Fairness Summary, Competency Expiry and the competency register.
+
+Both come from the same draft, so exporting one does not reschedule the other or
+discard manual adjustments.
+
+## Two demonstration laboratories
+
+**Balanced example** — a well-staffed fictional department: 100% staffing slot
+coverage, 100% of shifts meeting every configured requirement, no critical items,
+no rest conflicts and no single points of failure. This is what a healthy result
+looks like.
+
+**Challenging example** — deliberately contains staffing, competency, leave and
+availability constraints so you can see what LabRoster detects. It is labelled as
+not typical, because it is not.
+
+## Manual adjustment
+
+After generating, pick a date and shift and change who is working it. Only people
+who could actually work that shift are offered, with their current competencies
+listed; anybody excluded is counted with the reason. Every check is then re-run —
+staffing, competencies, sections, hours, fairness, rest, resilience — so the
+consequences of a change are visible immediately.
+
+Taking somebody off means they are not rostered anywhere that day, otherwise the
+scheduler would simply put them back when refilling the shift. Manual changes are
+marked as such, survive **Generate alternative roster**, and can be undone
+individually or all at once.
 
 ## Workbook structure
 
@@ -235,13 +321,6 @@ every category of warning, and tests assert that it does.
 
 ## Known limitations
 
-- **Runtime dependencies are not yet self-hosted.** Pyodide and openpyxl load
-  from a public CDN. Self-hosting is planned so everything can be served from one
-  trusted domain.
-- **Manual roster adjustment is prepared for but not exposed.** Assignments are
-  tracked as auto-generated or manually adjusted, manual ones are never
-  overwritten, and rules are re-checked against the finished roster — but there
-  is no editing interface yet.
 - **Section recency is reported, not scheduled around.** The data is collected and
   warnings are raised; rotation is not yet an input to the scheduler.
 - **Part-shift bench blocks are not implemented.** The data model and the overlap
@@ -254,11 +333,13 @@ every category of warning, and tests assert that it does.
 
 ## Roadmap
 
-1. Self-hosted Pyodide and openpyxl, served from one domain
-2. Manual roster adjustment in the browser, with rules re-checked live
-3. Rotation and recency as scheduling inputs
-4. Part-shift section allocation
-5. Bank holiday handling
+1. **Bank holidays** — dates, holiday-specific shifts, eligibility and their own
+   fairness treatment. Not hard-coded to any nation, because organisations and
+   sites differ.
+2. **Rotation and recency as scheduling inputs** rather than only reports.
+3. **Part-shift section allocation** — morphology 09:00–13:00 then coagulation
+   13:00–17:00. The data model and the overlap primitive are already in place.
+4. **Workbook simplification** — hiding the sheets a manager rarely edits.
 
 ## Privacy summary
 

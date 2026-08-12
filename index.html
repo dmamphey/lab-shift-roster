@@ -572,6 +572,7 @@
        the shifts you define, in an order that satisfies the hardest requirements
        first, and it will not break a rule you have set: where it cannot fill a
        shift without doing so, it leaves the shift short and tells you.</p>
+    <p id="runtime-source"></p>
     <p>The application runs a Python runtime compiled to WebAssembly (Pyodide),
        together with the openpyxl spreadsheet library, entirely inside your
        browser. This is what allows the tool to be served as static files while
@@ -593,9 +594,25 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 "use strict";
+
+/* Where the Python runtime comes from.
+ *
+ * A self-hosted copy under vendor/ is preferred, so a deployment can serve
+ * everything from one trusted domain — which is normally what an NHS-managed
+ * environment needs. When vendor/ is absent the public CDN is used instead, so
+ * development and the GitHub Pages demo need no download step.
+ *
+ * Populate vendor/ with:  python tools/fetch_runtime.py
+ */
+const PYODIDE_VERSION = "0.26.4";
+const LOCAL_RUNTIME = "vendor/pyodide/";
+const CDN_RUNTIME =
+  `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+const LOCAL_WHEELS = "vendor/wheels/";
+let runtimeBase = CDN_RUNTIME;
+let runtimeIsLocal = false;
 const $ = (id) => document.getElementById(id);
 
 // The package is fetched module by module: no build step, so the repository
@@ -781,13 +798,42 @@ function escapeHtml(text) {
 
 /* ------------------------------------------------------------------ boot */
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const element = document.createElement("script");
+    element.src = src;
+    element.onload = resolve;
+    element.onerror = () => reject(new Error(`Could not load ${src}`));
+    document.head.appendChild(element);
+  });
+}
+
+/** Use the self-hosted runtime when it is there, the CDN when it is not. */
+async function chooseRuntime() {
+  try {
+    const probe = await fetch(`${LOCAL_RUNTIME}pyodide.js`, { method: "HEAD" });
+    if (probe.ok) {
+      runtimeBase = LOCAL_RUNTIME;
+      runtimeIsLocal = true;
+    }
+  } catch (ignored) {
+    /* no local copy: fall back to the CDN */
+  }
+  await loadScript(`${runtimeBase}pyodide.js`);
+}
+
 async function boot() {
   try {
     setStatus("Preparing LabRoster…", true);
-    pyodide = await loadPyodide();
+    await chooseRuntime();
+    pyodide = await loadPyodide({ indexURL: runtimeBase });
     await pyodide.loadPackage("micropip");
     const micropip = pyodide.pyimport("micropip");
-    await micropip.install("openpyxl");
+    // Self-hosted deployments install from local wheels so nothing reaches PyPI.
+    await micropip.install(runtimeIsLocal
+      ? [`${LOCAL_WHEELS}et_xmlfile-2.0.0-py3-none-any.whl`,
+         `${LOCAL_WHEELS}openpyxl-3.1.5-py2.py3-none-any.whl`]
+      : "openpyxl");
 
     try { pyodide.FS.mkdir("/labroster"); } catch (ignored) { /* exists */ }
     for (const name of MODULES) {
@@ -807,6 +853,12 @@ async function boot() {
     applyProductInfo();
 
     setStatus("LabRoster ready", false);
+    $("runtime-source").textContent = runtimeIsLocal
+      ? "This deployment serves the Python runtime from its own domain, so no "
+        + "third-party host is contacted."
+      : "This deployment loads the Python runtime from a public CDN "
+        + "(cdn.jsdelivr.net). It can be self-hosted instead so that everything "
+        + "comes from one domain.";
     enable(true);
   } catch (error) {
     setStatus("LabRoster could not start", false);

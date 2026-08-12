@@ -1,5 +1,110 @@
 # Changelog
 
+## 3.0.0-beta — Optymum SS release
+
+### Branding and positioning
+
+Optymum SS wordmark and brand palette (#1878C4 primary, #17395F navy) applied
+throughout, with a branded hero panel, favicon, meta description and Open Graph
+tags. Version, company and contact details come from `labroster.__version__` alone,
+so nothing duplicates a version string. Footer links for Privacy, User guide,
+Feedback and About.
+
+The logo file is a recreation, because the artwork was supplied as an image rather
+than a vector. Replacing `assets/optymum-ss-logo.svg` with the original needs no
+other change.
+
+### Hours and absence
+
+- Hours are accounted as **target, worked, credited absence, total accounted,
+  variance**, and balancing uses total accounted. Previously a person with five
+  days of annual leave worked the same hours as colleagues with none, compressed
+  into fewer days.
+- Credited hours derive from each person's own working pattern, configurable per
+  leave type, with an optional explicit figure per absence.
+- `Max Weekly Hours` added as a hard ceiling.
+- Removed the `Senior band threshold`, which was read from the workbook and never
+  used by anything. Seniority is recorded per person; grades use `Min Band`.
+
+### Measurement
+
+- `Shift coverage` renamed **`Staffing slot coverage`** — it only ever measured
+  whether positions were occupied.
+- Added **`Shifts meeting all configured requirements`**, which checks every
+  condition per shift instance. On the challenging example: 100% of positions
+  occupied, 63.5% of shifts actually satisfying everything.
+- Coverage gaps are recomputed from the **finished** roster rather than the
+  scheduler's build log, which could report problems that had since been resolved.
+- Related warnings are consolidated by root cause, with Required, Available, Impact
+  and a review point, and traceability to the underlying checks retained.
+- Issues open with severity counts and main causes by frequency.
+
+### Fairness
+
+- Weekend days are shared by who has done fewest, not by hours owed. Ordering by
+  absolute deficit concentrated weekends on full-timers, whose larger target gave
+  them a larger deficit.
+- **Nights are shared evenly by default.** Concentrating them while eligible
+  colleagues do none is not acceptable in practice. The cost is documented: night
+  blocks book recovery days, so sharing can reduce day-service cover. Configurable.
+- Night fairness is judged on **blocks**, since ten three-night blocks between eight
+  people cannot come out level.
+
+### Manager control
+
+- **Manual adjustment in the browser.** Change who works a shift; only eligible
+  staff are offered, with their competencies; excluded staff are counted with the
+  reason. Every check re-runs. Removals are honoured as blocked days, or the
+  scheduler would simply refill with the same person. Changes survive
+  `Generate alternative roster` and can be undone individually or all at once.
+- **Start new roster** clears everything without a page reload.
+- The random seed is gone from the interface. `Generate alternative roster` picks
+  its own; the number survives as `Roster generation ID` under Advanced settings.
+
+### Outputs
+
+- **Two exports.** Staff rota (three sheets, data-minimised: no competency records,
+  hours, fairness, vulnerabilities or absence reasons) and manager report (all ten
+  analytical sheets). Both from one draft.
+- Shift and absence colours are shown as colours in the workbook, with a Preview
+  cell, alongside the hex codes.
+- `Download blank template` renamed `Download blank workbook`.
+
+### Demonstrations
+
+- **Balanced example** added: 100% slot coverage, 100% requirement compliance, zero
+  criticals, no rest conflicts, no single points of failure.
+- The **challenging example** is now labelled as deliberate and not typical.
+
+### Deployment
+
+- The runtime can be **self-hosted** with `python tools/fetch_runtime.py`: 13.7 MB
+  into a git-ignored `vendor/`. With it present, loading and generating contacts no
+  host but the one serving the page. Falls back to the CDN when absent, so
+  development and the Pages demo need no download.
+- Sizes, deployment, caching, update procedure and licence obligations documented.
+
+### Fixed
+
+- A single-handed night requiring `BT:1, HAEM:1` was impossible to satisfy:
+  distinct-person matching is right for sections, which are physical stations, but
+  not for a shift's competency list. Compliance on the balanced example went from
+  69% to 100%.
+- Disciplines are written as short codes (`BT`, `HAEM`, `COAG`, `MORPH`), matching
+  laboratory usage and keeping existing workbooks readable.
+- `.nojekyll` added: GitHub Pages was silently excluding `labroster/__init__.py`
+  because Jekyll drops underscore-prefixed files, so the deployed site could not
+  start.
+- Browser hours table was showing a column that no longer existed.
+- Credited hours divided by availability rather than contracted days, so somebody
+  marked as able to work any day was treated as working a seven-day week.
+
+### Known limitations
+
+Bank holidays are not modelled. Rotation and recency are reported but are not
+scheduling inputs. Section allocation is whole-shift. Workbook sheet
+simplification is still to come.
+
 ## 2.0.0 — competency-aware workforce planning
 
 A rebuild of the roster generator into a laboratory workforce planning product.

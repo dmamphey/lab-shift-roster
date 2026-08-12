@@ -22,3 +22,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# Self-hosted runtime, fetched with tools/fetch_runtime.py.
+# About 14 MB of third-party binaries: deployed, not committed.
+vendor/
