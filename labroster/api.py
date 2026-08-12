@@ -20,6 +20,21 @@ from .template import build_blank_template, build_demo_workbook
 from .workbook import ERROR, Problem, WorkbookError, read_workbook
 
 
+def product_info() -> dict:
+    """Product identity, read from one place so nothing duplicates a version."""
+    from . import (COMPANY_NAME, CONTACT_EMAIL, PRODUCT_NAME, SCHEMA_VERSION,
+                   TAGLINE, VERSION_LABEL, __version__)
+    return {
+        "product": PRODUCT_NAME,
+        "company": COMPANY_NAME,
+        "tagline": TAGLINE,
+        "version": __version__,
+        "version_label": VERSION_LABEL,
+        "contact": CONTACT_EMAIL,
+        "workbook_version": SCHEMA_VERSION,
+    }
+
+
 def blank_template_bytes() -> bytes:
     buffer = io.BytesIO()
     build_blank_template(buffer)
@@ -223,6 +238,7 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
         "ok": True,
         "problems": _problem_payload(problems),
         "details": _details_payload(config),
+        "generation_id": config.rules.seed,
         "dashboard": analysis.metrics,
         "issues": analysis.issues_payload(),
         "hours": analysis.hours_payload(),

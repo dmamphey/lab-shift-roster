@@ -9,7 +9,15 @@ Module map (modules are added as the migration proceeds):
     timeutils   shift durations, midnight crossing, rest intervals, week patterns
 """
 
-__version__ = "2.0.0-dev"
+__version__ = "3.0.0-beta"
+"""Single source of truth for the version.  The interface, the exported workbooks
+and the command line all read this rather than carrying their own copy."""
+
+VERSION_LABEL = "Version 3 Beta"
+PRODUCT_NAME = "LabRoster"
+COMPANY_NAME = "Optymum SS"
+CONTACT_EMAIL = "projects@optymumss.com"
+TAGLINE = "Intelligent workforce planning for diagnostic laboratories"
 
 SCHEMA_VERSION = 2
 """Workbook schema version.  Written into the Settings sheet so an older

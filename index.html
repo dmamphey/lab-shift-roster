@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LabRoster — competency-aware workforce planning for diagnostic laboratories</title>
+<title>LabRoster by Optymum SS — intelligent workforce planning for diagnostic laboratories</title>
+<meta name="description" content="LabRoster builds draft laboratory rosters around staffing levels, competencies, working patterns, shift requirements and bench coverage. Your workforce workbook is processed locally in your browser and is not uploaded to Optymum SS.">
+<meta name="author" content="Optymum SS">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Optymum SS">
+<meta property="og:title" content="LabRoster — intelligent workforce planning for diagnostic laboratories">
+<meta property="og:description" content="Create draft laboratory rosters around staffing, competencies, working patterns and bench coverage. Workforce data is processed locally in your browser.">
+<meta name="twitter:card" content="summary">
+<!-- Favicon is inline so the application stays self-contained and works from any
+     subdirectory. Replace with the Optymum SS icon asset when available. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f3864'/%3E%3Cpath d='M14 16h7v24h13v8H14z' fill='%23fff'/%3E%3Ccircle cx='44' cy='22' r='7' fill='none' stroke='%2300b0f0' stroke-width='5'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f5f7fa; --panel: #ffffff; --ink: #14181d; --muted: #56606c;
@@ -36,10 +46,14 @@
   a { color: var(--accent); }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-  header { padding: 2.5rem 0 1.25rem; }
-  h1 { font-size: 1.9rem; margin: 0 0 .35rem; letter-spacing: -.02em; }
-  .tagline { font-size: 1.08rem; color: var(--muted); margin: 0 0 1.25rem;
-             max-width: 62ch; }
+  header { padding: 2rem 0 1.25rem; }
+  .brand { margin-bottom: 1.1rem; }
+  .brand-mark { height: 34px; width: auto; color: var(--ink); display: block; }
+  h1 { font-size: 2.05rem; margin: 0 0 .2rem; letter-spacing: -.025em; }
+  .tagline { font-size: 1.12rem; color: var(--ink); font-weight: 600;
+             margin: 0 0 .5rem; max-width: 62ch; }
+  .lede-secondary { font-size: .98rem; color: var(--muted); margin: 0 0 1.25rem;
+                    max-width: 64ch; }
   h2 { font-size: 1.15rem; margin: 0 0 .25rem; }
   h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .07em;
        color: var(--muted); margin: 0 0 .7rem; }
@@ -201,16 +215,31 @@
   footer { color: var(--muted); font-size: .84rem; border-top: 1px solid var(--line);
            margin-top: 2.5rem; padding-top: 1.25rem; }
   footer h3 { margin-top: 1rem; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 1.1rem; margin: 1rem 0 .6rem; }
+  .footer-links a { font-weight: 600; }
+  .footer-meta { font-size: .8rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header>
+  <!-- Placeholder wordmark. Swap the <svg> for the real Optymum SS asset. -->
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 200 40" role="img"
+         aria-label="Optymum SS, the company that develops LabRoster">
+      <rect x="0" y="4" width="32" height="32" rx="7" fill="#1f3864"/>
+      <circle cx="16" cy="20" r="8" fill="none" stroke="#00b0f0" stroke-width="4"/>
+      <text x="42" y="26" font-family="system-ui, sans-serif" font-size="17"
+            font-weight="700" fill="currentColor">Optymum<tspan
+            fill="#00b0f0"> SS</tspan></text>
+    </svg>
+  </div>
   <h1>LabRoster</h1>
-  <p class="tagline">Competency-aware workforce planning for diagnostic
-     laboratories. Build rotas around staffing levels, competencies, shift rules
-     and bench coverage.</p>
+  <p class="tagline">Intelligent workforce planning for diagnostic laboratories.</p>
+  <p class="lede-secondary">Create draft laboratory rosters around staffing
+     levels, competencies, working patterns, shift requirements and bench
+     coverage.</p>
 
   <div class="privacy">
     <strong>Your workforce data stays on your device.</strong>
@@ -240,7 +269,7 @@
      department you can generate a roster from straight away, to see what
      LabRoster produces.</p>
   <div class="actions">
-    <button id="btn-blank" class="secondary" disabled>Download blank template</button>
+    <button id="btn-blank" class="secondary" disabled>Download blank workbook</button>
     <button id="btn-demo" class="secondary" disabled>Download example laboratory</button>
   </div>
 </section>
@@ -263,7 +292,7 @@
   </div>
 
   <details class="advanced">
-    <summary>Advanced options</summary>
+    <summary>Advanced settings</summary>
     <div class="row">
       <div class="field">
         <label for="start">Start date</label>
@@ -274,18 +303,16 @@
         <input type="date" id="end">
       </div>
       <div class="field">
-        <label for="alt">Roster variation</label>
+        <label for="alt">Roster generation ID</label>
         <input type="number" id="alt" value="42" min="1" max="9999"
-               style="width:100px" aria-describedby="alt-help">
-      </div>
-      <div class="field" style="align-self:flex-end">
-        <button id="btn-alt" class="secondary" disabled>Generate alternative roster</button>
+               style="width:110px" aria-describedby="alt-help">
       </div>
     </div>
     <p id="alt-help" class="hint" style="margin:.6rem 0 0">
-      Leave the dates blank to use the period set in your workbook. Changing the
-      variation number produces a different draft from the same information,
-      which is useful if you would rather the work fell differently.</p>
+      Leave the dates blank to use the period set in your workbook. The
+      generation ID is recorded with each draft so the same roster can be
+      reproduced; you do not normally need to change it. Use
+      <strong>Generate alternative roster</strong> instead.</p>
   </details>
 
   <div class="statusline" id="statusline" role="status" aria-live="polite"
@@ -321,8 +348,11 @@
      them.</p>
   <div class="actions" style="margin-top:1rem">
     <button id="btn-export">Export to Excel</button>
+    <button id="btn-alt" class="secondary">Generate alternative roster</button>
+    <button id="btn-reset" class="secondary">Start new roster</button>
     <a href="#issues-heading" class="hint" style="margin-left:.3rem">View issues</a>
   </div>
+  <p class="hint" id="generation-note" style="margin:.75rem 0 0"></p>
 </section>
 
 <section class="panel" aria-labelledby="issues-heading">
@@ -409,14 +439,22 @@
 </div><!-- /results -->
 
 <footer>
-  <p><strong>LabRoster provides workforce planning and draft roster decision
-     support.</strong> It does not replace organisational HR, payroll, ESR, legal,
-     regulatory or managerial responsibilities. Rest intervals and other limits are
-     rules you configure for your own laboratory, not a determination of legal or
+  <p><strong>LabRoster by Optymum SS generates draft workforce plans for
+     managerial review.</strong> It does not replace local workforce policies, HR
+     systems or professional judgement. Rest intervals and other limits are rules
+     you configure for your own laboratory, not a determination of legal or
      regulatory compliance.</p>
 
-  <details>
-    <summary><strong>Privacy and technical information</strong></summary>
+  <nav class="footer-links" aria-label="About LabRoster">
+    <a href="#privacy-detail">Privacy</a>
+    <a href="#how-heading">User guide</a>
+    <a id="feedback-link" href="mailto:projects@optymumss.com?subject=LabRoster%20feedback">Feedback</a>
+    <a href="#about-detail">About</a>
+  </nav>
+  <p class="footer-meta" id="footer-meta"></p>
+
+  <details id="privacy-detail">
+    <summary><strong>How LabRoster protects your data</strong></summary>
     <h3>What happens to your data</h3>
     <p>Your workbook is read inside your browser tab. It is not uploaded to
        Optymum SS, and LabRoster does not store roster information on an external
@@ -435,6 +473,18 @@
        together with the openpyxl spreadsheet library, entirely inside your
        browser. This is what allows the tool to be served as static files while
        keeping your data local.</p>
+  </details>
+
+  <details id="about-detail">
+    <summary><strong>About LabRoster</strong></summary>
+    <p>LabRoster is developed by <strong>Optymum SS</strong> for diagnostic
+       laboratory managers. It answers one question: do I have the right people,
+       with the right competencies, in the right laboratory areas, at the right
+       time?</p>
+    <p>The scheduling engine is rules-based. It is not artificial intelligence,
+       and it does not make staffing decisions — the laboratory manager remains
+       responsible for approving every roster.</p>
+    <p id="about-version"></p>
   </details>
 </footer>
 
@@ -476,6 +526,20 @@ def _generate(source, start, end, alternative):
 let pyodide = null;
 let latest = null;
 let currentTab = "CRITICAL";
+let product = null;
+let hasManualChanges = false;
+
+/* Which internal generation IDs have already been used, so "Generate
+   alternative roster" reliably produces something different each time. */
+const usedGenerationIds = new Set();
+
+function nextGenerationId() {
+  let candidate;
+  do {
+    candidate = 1 + Math.floor(Math.random() * 9998);
+  } while (usedGenerationIds.has(candidate));
+  return candidate;
+}
 
 /* ---------------------------------------------------------------- status */
 
@@ -485,10 +549,63 @@ function setStatus(text, busy) {
 }
 
 function enable(on) {
-  for (const id of ["btn-blank", "btn-demo", "file", "btn-generate",
-                    "btn-try", "btn-alt"]) {
+  for (const id of ["btn-blank", "btn-demo", "file", "btn-generate", "btn-try"]) {
     $(id).disabled = !on;
   }
+  // The post-generation controls only make sense once a draft exists.
+  for (const id of ["btn-alt", "btn-reset", "btn-export"]) {
+    $(id).disabled = !(on && latest);
+  }
+}
+
+/**
+ * Return the interface to its starting state without a page reload.
+ *
+ * Pyodide and the loaded product information deliberately survive: they are
+ * application setup, not roster data, and re-downloading the runtime would be a
+ * pointless wait.
+ */
+function resetApplication() {
+  latest = null;
+  hasManualChanges = false;
+  usedGenerationIds.clear();
+
+  $("results").classList.add("hidden");
+  clearProblems();
+
+  // Roster data and every derived view.
+  for (const id of ["tiles", "issue-list", "grid", "coverage", "hours",
+                    "resilience", "legend", "dash-sub", "generation-note"]) {
+    $(id).innerHTML = "";
+  }
+  $("verdict-text").textContent = "";
+  $("verdict-pill").textContent = "";
+  $("verdict-pill").className = "pill";
+
+  // Preview and coverage filters.
+  $("f-staff").value = "";
+  $("f-shift").innerHTML = '<option value="">All shifts</option>';
+  $("f-from").value = "";
+  $("f-to").value = "";
+  $("c-date").innerHTML = "";
+  $("c-section").innerHTML = '<option value="">All sections</option>';
+
+  // The uploaded workbook itself.
+  $("file").value = "";
+  try { pyodide.FS.unlink("/upload.xlsx"); } catch (ignored) { /* not there */ }
+  try { pyodide.FS.unlink("/roster.xlsx"); } catch (ignored) { /* not there */ }
+
+  // Configuration a manager would expect to persist stays: the date overrides
+  // and the generation ID are settings, not results.
+  currentTab = "CRITICAL";
+  for (const key of ["CRITICAL", "REVIEW", "PASSED"]) {
+    $(`tab-${key}`).setAttribute("aria-selected", String(key === "CRITICAL"));
+    $(`tab-${key}`).querySelector("span").textContent = "";
+  }
+
+  enable(true);
+  setStatus("Ready for a new roster", false);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function download(bytes, filename) {
@@ -552,6 +669,10 @@ async function boot() {
     await pyodide.runPythonAsync(
       "import sys\nif '/' not in sys.path: sys.path.insert(0, '/')\n" + GLUE);
 
+    product = JSON.parse(pyodide.runPython(
+      "import json; from labroster import api; json.dumps(api.product_info())"));
+    applyProductInfo();
+
     setStatus("LabRoster ready", false);
     enable(true);
   } catch (error) {
@@ -559,6 +680,22 @@ async function boot() {
     showProblems("LabRoster could not start in this browser.",
                  [{ location: "", message: friendly(error) }]);
   }
+}
+
+/** Version and contact details come from the package, not from this page. */
+function applyProductInfo() {
+  if (!product) return;
+  $("footer-meta").innerHTML =
+    `${escapeHtml(product.version_label)} &middot; `
+    + `Contact: <a href="mailto:${escapeHtml(product.contact)}">`
+    + `${escapeHtml(product.contact)}</a>`;
+  $("about-version").textContent =
+    `${product.product} ${product.version} (${product.version_label}), `
+    + `workbook format version ${product.workbook_version}. `
+    + `Developed by ${product.company}.`;
+  $("feedback-link").href =
+    `mailto:${product.contact}?subject=${encodeURIComponent(
+      product.product + " " + product.version + " feedback")}`;
 }
 
 function friendly(error) {
@@ -611,7 +748,12 @@ async function generate(source) {
     }
     latest = result;
     latest.bytes = pyodide.FS.readFile("/roster.xlsx");
+    hasManualChanges = false;
+    if (result.generation_id) usedGenerationIds.add(Number(result.generation_id));
     render(result);
+    $("generation-note").textContent =
+      `Roster generation ID ${result.generation_id}. Use "Generate alternative `
+      + `roster" to produce a different draft from the same information.`;
     setStatus("Draft roster ready — please review the issues", false);
     $("results").classList.remove("hidden");
   } catch (error) {
@@ -865,8 +1007,10 @@ function drawCoverage() {
 function renderHours(result) {
   $("hours").innerHTML = `<thead><tr>
       <th scope="col">Name</th><th scope="col">Contracted / week</th>
-      <th scope="col">Target</th><th scope="col">Allocated</th>
-      <th scope="col">Difference</th><th scope="col">% of target</th>
+      <th scope="col">Target</th><th scope="col">Worked</th>
+      <th scope="col">Credited absence</th>
+      <th scope="col">Total accounted</th>
+      <th scope="col">Variance</th><th scope="col">% of target</th>
       <th scope="col">Status</th><th scope="col">Nights</th>
       <th scope="col">Weekend days</th></tr></thead><tbody>`
     + result.hours.map((row) => {
@@ -874,7 +1018,9 @@ function renderHours(result) {
       return `<tr><td>${escapeHtml(row.name)}</td>
         <td class="num">${row.contracted_weekly_hours}</td>
         <td class="num">${row.target}</td>
-        <td class="num">${row.allocated}</td>
+        <td class="num">${row.worked}</td>
+        <td class="num">${row.credited ? row.credited : "—"}</td>
+        <td class="num">${row.accounted}</td>
         <td class="num">${row.variance > 0 ? "+" : ""}${row.variance}</td>
         <td class="num">${row.percent == null ? "—" : row.percent + "%"}</td>
         <td><span class="pill ${tone}">${escapeHtml(row.status)}</span></td>
@@ -925,17 +1071,25 @@ $("btn-try").addEventListener("click", async () => {
 });
 
 $("btn-alt").addEventListener("click", async () => {
-  const value = Number($("alt").value || 42);
-  $("alt").value = value >= 9999 ? 1 : value + 1;
-  const file = $("file").files[0];
-  if (file) {
-    const buffer = await file.arrayBuffer();
-    pyodide.FS.writeFile("/upload.xlsx", new Uint8Array(buffer));
-    await generate("/upload.xlsx");
-  } else {
-    await pyodide.runPythonAsync("_demo()");
-    await generate("/demo.xlsx");
+  if (hasManualChanges && !window.confirm(
+      "Generate an alternative roster? Your manual changes to the current "
+      + "draft will be replaced.")) {
+    return;
   }
+  // A different internal generation ID, chosen for the manager rather than
+  // typed in by them.
+  $("alt").value = nextGenerationId();
+  const source = $("file").files[0] ? "/upload.xlsx" : "/demo.xlsx";
+  if (source === "/demo.xlsx") await pyodide.runPythonAsync("_demo()");
+  await generate(source);
+});
+
+$("btn-reset").addEventListener("click", () => {
+  const message = hasManualChanges
+    ? "Start a new roster? The currently generated draft and any manual changes "
+      + "will be cleared."
+    : "Start a new roster? The currently generated draft will be cleared.";
+  if (window.confirm(message)) resetApplication();
 });
 
 $("btn-export").addEventListener("click", () => {

@@ -251,18 +251,27 @@ class Staff:
 
     @property
     def working_days_per_week(self) -> int:
-        """How many days a week this person normally works.
+        """How many days a week this person's contracted hours are spread over.
 
-        Taken from the working pattern where one is set, averaged across the
-        cycle; otherwise inferred from contracted hours against a standard day.
+        Availability and contracted days are not the same thing: marking somebody
+        as able to work all seven days means they are flexible, not that they work
+        a seven-day week.  So the count uses the Monday-to-Friday part of the
+        pattern, which is how contracted hours are normally expressed, and only
+        falls back to the whole pattern for somebody who works weekends only.
         """
         pattern = self.availability.weekdays
         if pattern:
-            counts = [len(days) for days in pattern.values() if days]
-            if counts:
-                return max(1, round(sum(counts) / len(counts)))
+            weekday_counts = [len([day for day in days if day < 5])
+                              for days in pattern.values() if days]
+            weekday_counts = [count for count in weekday_counts if count]
+            if weekday_counts:
+                return max(1, min(5, round(sum(weekday_counts)
+                                           / len(weekday_counts))))
+            all_counts = [len(days) for days in pattern.values() if days]
+            if all_counts:
+                return max(1, round(sum(all_counts) / len(all_counts)))
         if self.contracted_weekly_hours:
-            return max(1, min(7, round(self.contracted_weekly_hours / 7.5)))
+            return max(1, min(5, round(self.contracted_weekly_hours / 7.5)))
         return 5
 
     @property
