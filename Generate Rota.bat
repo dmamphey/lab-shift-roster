@@ -1,17 +1,17 @@
 @echo off
-rem Double-click launcher for the lab shift roster generator.
+rem Double-click launcher for LabRoster.
 rem
-rem First run creates roster_input.xlsx and opens it for you to fill in.
+rem First run creates LabRoster-workbook.xlsx and opens it for you to fill in.
 rem Every run after that reads it and writes a timestamped rota, then opens it.
 rem
 rem Set ROSTER_NO_PAUSE=1 to skip the "press any key" at the end (used by tests).
 
 setlocal
 cd /d "%~dp0"
-title Lab Shift Roster
+title LabRoster
 
 echo ==========================================
-echo   Lab Shift Roster
+echo   LabRoster
 echo ==========================================
 echo.
 
@@ -55,30 +55,30 @@ if errorlevel 1 (
 )
 
 rem ---- first run: no input workbook yet -------------------------------
-if not exist "roster_input.xlsx" (
+if not exist "LabRoster-workbook.xlsx" (
   echo   No input workbook found, so creating one for you...
   echo.
-  "%PY%" "lab_roster.py" template --out "roster_input.xlsx"
+  "%PY%" -m labroster template --out "LabRoster-workbook.xlsx"
   if errorlevel 1 goto :end
   echo.
-  echo   Created roster_input.xlsx and opening it now.
+  echo   Created LabRoster-workbook.xlsx and opening it now.
   echo.
-  echo   Replace the example staff with your real staff, set the date
-  echo   range on the Settings sheet, add any leave, then save and close
-  echo   it and run this file again to build the rota.
-  start "" "roster_input.xlsx"
+  echo   Add your staff and their competencies, set the roster period on
+  echo   the Roster Details sheet, add any leave, then save and close it
+  echo   and run this file again to build the draft roster.
+  start "" "LabRoster-workbook.xlsx"
   goto :end
 )
 
 rem ---- generate, into a timestamped file so nothing is overwritten ----
 rem Seconds are included so two runs in the same minute cannot collide.
 for /f %%T in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd_HHmmss"') do set "STAMP=%%T"
-set "OUT=rota_%STAMP%.xlsx"
+set "OUT=LabRoster-draft_%STAMP%.xlsx"
 
-echo   Reading roster_input.xlsx
+echo   Reading LabRoster-workbook.xlsx
 echo   Writing %OUT%
 echo.
-"%PY%" "lab_roster.py" generate --input "roster_input.xlsx" --out "%OUT%"
+"%PY%" -m labroster generate --input "LabRoster-workbook.xlsx" --out "%OUT%"
 if errorlevel 1 (
   echo.
   echo   Something went wrong - the message above says what.
