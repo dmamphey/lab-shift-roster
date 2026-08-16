@@ -334,7 +334,9 @@
       <tr><td><strong>Blank workbook</strong></td>
           <td>All the headings, guidance and dropdown lists. No staff, no
               competencies, no leave. Shifts, requirements and sections carry a
-              common starting configuration you can adjust.</td>
+              common starting configuration you can adjust — set a shift's
+              <em>Active</em> column to <code>N</code> for any your laboratory
+              does not run.</td>
           <td>You are setting up your own laboratory</td></tr>
       <tr><td><strong>Balanced example</strong></td>
           <td>A well-staffed fictional department of fourteen. Produces full
@@ -824,6 +826,11 @@
   <p>If the workbook needs correcting you will get a list of everything wrong at
      once, each naming the sheet, the row and the column heading. Fix them, save, and
      choose the file again — you do not have to reload the page.</p>
+  <p>A workbook from an earlier version still works. You will see a note saying it
+     predates the current template, because it will not have the newer optional
+     columns — <em>Active</em> on the Shifts sheet and <em>Initials</em> on the
+     Staff sheet. Nothing is rejected, and a missing Active column simply means
+     every shift runs, exactly as before.</p>
   <h3>Advanced settings</h3>
   <p>Optional. You can override the start and end dates without editing the
      workbook, which is useful for producing next month from the same file. The
@@ -925,10 +932,9 @@
   <h2>17. Roster preview and section coverage</h2>
   <p>Staff down the side, dates across the top, shift codes in the cells, coloured
      as you configured them. The name column stays put while you scroll sideways.</p>
-  <p>The exported rota carries an <strong>Initials</strong> column beside each
-     name. The section allocation rows underneath the grid identify people by
-     their initials, and without the column a reader had to guess whose they
-     were.</p>
+  <p>This on-screen preview names people in full. The <em>exported</em> rota adds
+     an Initials column, because that is where the section allocation rows use
+     initials — see <a href="#exports">Exporting</a>.</p>
   <ul>
     <li><strong>Search staff</strong> by name, role or band</li>
     <li><strong>Filter by shift</strong> to see who is on nights, for instance</li>
@@ -1035,6 +1041,9 @@
   <p>A simplified workbook for circulating to the team: <em>Roster</em>,
      <em>Section Allocations</em> and <em>Notes</em>. Clean, printable, and
      deliberately limited to what somebody needs in order to read their own rota.</p>
+  <p>The Roster sheet carries an <strong>Initials</strong> column beside each
+     name, so the initials used in the section allocation rows can be matched to
+     a person without leaving the sheet.</p>
   <div class="good">
     <p><strong>What it withholds, on purpose.</strong> Competency records,
        individual hours, fairness analysis, workforce vulnerabilities, private
@@ -1050,8 +1059,8 @@
     <tbody>
       <tr><td>Instructions</td><td>Period, status, and the rules that were
           applied</td></tr>
-      <tr><td>Roster</td><td>The rota, with section allocations and per-shift
-          staffing counts</td></tr>
+      <tr><td>Roster</td><td>The rota, with an Initials column beside each name,
+          section allocations and per-shift staffing counts</td></tr>
       <tr><td>Staff</td><td>Who was included, grades, patterns, restrictions</td></tr>
       <tr><td>Competencies</td><td>The register, with what counts as cover</td></tr>
       <tr><td>Shift Requirements</td><td>What each shift was required to
