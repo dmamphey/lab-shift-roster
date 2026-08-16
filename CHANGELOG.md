@@ -1,5 +1,49 @@
 # Changelog
 
+## 3.1.0-beta — Working patterns and initials
+
+### Shifts a laboratory does not run
+
+The Shifts sheet gains an **Active** column. Set it to `N` and that shift is
+never rostered.
+
+The five seeded shifts were being read as a prescription rather than a starting
+point, and a laboratory with no early shift had no obvious way forward. Deleting
+the row always worked, but it is destructive, has to be repeated across the Shift
+Requirements and Benches sheets, and has to be retyped if the pattern changes
+back.
+
+While a shift is inactive, requirements and benches that mention it are ignored
+rather than reported as errors — that is what makes switching one off a single
+edit instead of three. A code that is genuinely misspelt is still an error, and
+marking every shift inactive is reported in its own words rather than producing
+an empty rota. A workbook with no Active column behaves exactly as before.
+
+Adding a shift needs no new mechanism: add a row, give it an unused code, and
+refer to it from the other sheets.
+
+### Initials on the rota
+
+The section allocation rows identify people by initials. The rota now carries an
+**Initials** column beside each name, so a reader can tell whose they are without
+leaving the sheet.
+
+The Staff sheet gains an optional Initials column. Leave it blank and they are
+derived from the name and kept unique; fill it in and yours are used exactly as
+written.
+
+The derivation now lives in one place, `models.derive_initials`. A first attempt
+duplicated it into the template and immediately gave two of the fictional staff
+the same initials, because only one copy had the uniqueness step.
+
+### Tests
+
+Ten new tests covering both changes end to end. Workbook tests now address cells
+by column heading rather than by letter — inserting the Initials column moved
+every Staff column one place right, and two existing tests had been silently
+writing to the wrong field.
+
+
 ## 3.0.0-beta — Optymum SS release
 
 ### Branding and positioning

@@ -17,7 +17,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.properties import PageSetupProperties
 
 from .analysis import CRITICAL, PASSED, REVIEW, Analysis
-from .models import WEEKDAY_SHORT
+from .models import WEEKDAY_SHORT, derive_initials
 from .scheduler import Scheduler
 
 THIN = Side(style="thin", color="BFBFBF")
@@ -262,8 +262,15 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
     sheet = workbook.create_sheet("Roster")
     config = scheduler.config
     days = scheduler.days
-    first_col = 4
+    # Staff | Initials | Band | (Role) — the day columns start after them.
+    # Initials sits beside the name so a reader can match the codes used in the
+    # section rows below the grid to a person without leaving the sheet.
+    first_col = 5
     last_col = first_col + len(days) - 1
+    # One mapping for the whole sheet. The grid's Initials column and the codes
+    # in the section rows must be the same strings, or the column meant to
+    # explain the codes would instead contradict them.
+    initials = _initials(config.staff)
 
     sheet.sheet_view.showGridLines = False
     sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
@@ -294,7 +301,8 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
         cell.alignment = CENTRE
         cell.border = BORDER
 
-    left_columns = ((1, "Staff"), (2, "Band")) if staff_facing         else ((1, "Staff"), (2, "Band"), (3, "Role"))
+    left_columns = (((1, "Staff"), (2, "Initials"), (3, "Band")) if staff_facing
+                    else ((1, "Staff"), (2, "Initials"), (3, "Band"), (4, "Role")))
     for column, label in left_columns:
         cell = sheet.cell(row=3, column=column, value=label)
         cell.fill = HEADER_FILL
@@ -321,8 +329,9 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
         sheet.column_dimensions[get_column_letter(column)].width = 4.8
 
     sheet.column_dimensions["A"].width = 24
-    sheet.column_dimensions["B"].width = 6
-    sheet.column_dimensions["C"].width = 18
+    sheet.column_dimensions["B"].width = 8
+    sheet.column_dimensions["C"].width = 6
+    sheet.column_dimensions["D"].width = 18
 
     shift_fill = {shift.code: PatternFill("solid", fgColor=shift.colour)
                   for shift in config.shifts}
@@ -350,11 +359,16 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
             name_cell.font = Font(bold=person.is_senior, size=10)
             name_cell.alignment = LEFT
             name_cell.border = BORDER
-            left_values = ((2, person.band),) if staff_facing                 else ((2, person.band), (3, person.job_title))
+            left_values = (((2, initials.get(person.staff_id, "")),
+                            (3, person.band)) if staff_facing
+                           else ((2, initials.get(person.staff_id, "")),
+                                 (3, person.band), (4, person.job_title)))
             for column, value in left_values:
                 cell = sheet.cell(row=row, column=column, value=value)
                 cell.font = SMALL
-                cell.alignment = CENTRE if column == 2 else LEFT
+                # The name and the job title read as text; the initials and the
+                # band are short codes and centre like the day cells do.
+                cell.alignment = LEFT if column == 4 else CENTRE
                 cell.border = BORDER
 
             for offset, day in enumerate(days):
@@ -417,9 +431,9 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
         cell.font = WHITE_BOLD
         cell.alignment = LEFT
         row += 1
-        initials = _initials(config.staff)
         for bench in config.benches:
-            for column, value in ((1, bench.name), (2, bench.discipline), (3, "")):
+            for column, value in ((1, bench.name), (2, bench.discipline),
+                                  (3, ""), (4, "")):
                 cell = sheet.cell(row=row, column=column, value=value)
                 cell.fill = BENCH_FILL
                 cell.font = BOLD if column == 1 else SMALL
@@ -486,35 +500,14 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
 
 
 def _initials(staff) -> dict[str, str]:
-    """Short labels for the section allocation rows, kept unique."""
-    proposed: dict[str, str] = {}
-    for person in staff:
-        parts = [part for part in person.name.split() if part]
-        if not parts:
-            proposed[person.staff_id] = person.staff_id[:3]
-        elif len(parts) == 1:
-            proposed[person.staff_id] = parts[0][:2].upper()
-        else:
-            proposed[person.staff_id] = (parts[0][0] + parts[-1][0]).upper()
+    """Short labels for the roster grid and the section allocation rows.
 
-    by_code: dict[str, list[str]] = defaultdict(list)
-    for staff_id, code in proposed.items():
-        by_code[code].append(staff_id)
-    lookup = {person.staff_id: person for person in staff}
-    final: dict[str, str] = {}
-    for code, owners in by_code.items():
-        if len(owners) == 1:
-            final[owners[0]] = code
-            continue
-        for staff_id in owners:
-            parts = lookup[staff_id].name.split()
-            surname = parts[-1] if len(parts) > 1 else parts[0]
-            extended, index = code + surname[1:2].lower(), 2
-            while extended in final.values() and index <= len(surname):
-                extended = code + surname[1:index + 1].lower()
-                index += 1
-            final[staff_id] = extended
-    return final
+    The rule itself lives in ``models.derive_initials`` because the blank
+    workbook fills the same column, and two copies of a rule is how the demo
+    data ended up with two people sharing "AS".
+    """
+    return derive_initials(
+        (person.staff_id, person.name, person.initials) for person in staff)
 
 
 def _staff_sections(workbook, scheduler, analysis) -> None:

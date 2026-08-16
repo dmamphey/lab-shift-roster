@@ -11,6 +11,24 @@ from labroster import api
 from labroster.workbook import ERROR, WARNING, WorkbookError, read_workbook
 
 
+def cell(sheet, header: str, row: int) -> str:
+    """The cell for a named column, found by its heading.
+
+    Tests used to address these by letter, which meant that inserting a column
+    into the Staff sheet silently moved every assertion one place to the left —
+    two tests started writing to the wrong field and passed for the wrong reason
+    until they happened to fail. Looking the heading up costs nothing and cannot
+    drift.
+    """
+    for candidates in sheet.iter_rows():
+        values = [str(item.value).strip() if item.value is not None else ""
+                  for item in candidates]
+        if header in values:
+            return f"{candidates[values.index(header)].column_letter}{row}"
+    raise AssertionError(f"no column headed {header!r} on sheet {sheet.title!r}")
+
+
+
 # --------------------------------------------------------------------------
 # the two templates
 # --------------------------------------------------------------------------
@@ -245,7 +263,8 @@ def test_a_missing_column_names_the_column_not_a_python_key():
 
 def test_duplicate_staff_ids_are_reported_with_both_rows():
     def duplicate(workbook):
-        workbook["Staff"]["A4"] = workbook["Staff"]["A3"].value
+        staff = workbook["Staff"]
+        staff[cell(staff, "Staff ID", 4)] = staff[cell(staff, "Staff ID", 3)].value
     result, messages = _problems(_modified_demo(duplicate))
     assert not result["ok"]
     assert any("used twice" in message for message in messages)
@@ -253,7 +272,8 @@ def test_duplicate_staff_ids_are_reported_with_both_rows():
 
 def test_negative_contracted_hours_are_reported():
     def negative(workbook):
-        workbook["Staff"]["I3"] = -10
+        staff = workbook["Staff"]
+        staff[cell(staff, "Contracted Weekly Hours", 3)] = -10
     result, messages = _problems(_modified_demo(negative))
     assert not result["ok"]
     assert any("negative" in message.lower() for message in messages)
@@ -287,8 +307,9 @@ def test_impossible_availability_is_reported():
 
 def test_a_finish_time_before_a_start_time_is_reported():
     def impossible(workbook):
-        workbook["Staff"]["T3"] = "18:00"             # Earliest Start
-        workbook["Staff"]["U3"] = "09:00"             # Latest Finish
+        staff = workbook["Staff"]
+        staff[cell(staff, "Earliest Start", 3)] = "18:00"
+        staff[cell(staff, "Latest Finish", 3)] = "09:00"
     result, messages = _problems(_modified_demo(impossible))
     assert not result["ok"]
     assert any("earliest start" in message.lower() for message in messages)
@@ -296,7 +317,8 @@ def test_a_finish_time_before_a_start_time_is_reported():
 
 def test_a_zero_length_shift_is_reported():
     def zero_length(workbook):                    # data starts on row 3
-        workbook["Shifts"]["D3"] = workbook["Shifts"]["C3"].value
+        shifts = workbook["Shifts"]
+        shifts[cell(shifts, "End", 3)] = shifts[cell(shifts, "Start", 3)].value
     result, messages = _problems(_modified_demo(zero_length))
     assert not result["ok"]
     assert any("no length" in message or "starts and finishes" in message
@@ -305,7 +327,8 @@ def test_a_zero_length_shift_is_reported():
 
 def test_a_duplicate_shift_code_is_reported():
     def duplicate(workbook):                      # data starts on row 3
-        workbook["Shifts"]["A4"] = workbook["Shifts"]["A3"].value
+        shifts = workbook["Shifts"]
+        shifts[cell(shifts, "Code", 4)] = shifts[cell(shifts, "Code", 3)].value
     result, messages = _problems(_modified_demo(duplicate))
     assert not result["ok"]
     assert any("appears twice" in message for message in messages)
@@ -331,8 +354,9 @@ def test_a_roster_period_the_wrong_way_round_is_reported():
 def test_every_problem_is_reported_at_once_not_one_at_a_time():
     """A manager should be able to fix everything in a single pass."""
     def several(workbook):
-        workbook["Staff"]["I3"] = -5                     # negative hours
-        workbook["Staff"]["A4"] = workbook["Staff"]["A3"].value   # duplicate ID
+        staff = workbook["Staff"]
+        staff[cell(staff, "Contracted Weekly Hours", 3)] = -5
+        staff[cell(staff, "Staff ID", 4)] = staff[cell(staff, "Staff ID", 3)].value
         workbook["Competencies"]["E3"] = "Nonsense"       # bad status
     result, messages = _problems(_modified_demo(several))
     assert not result["ok"]

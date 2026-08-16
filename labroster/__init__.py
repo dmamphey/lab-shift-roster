@@ -20,6 +20,11 @@ COMPANY_NAME = "Optymum SS"
 CONTACT_EMAIL = "projects@optymumss.com"
 TAGLINE = "A free, secure and intelligent workforce planning tool for diagnostic laboratories."
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """Workbook schema version.  Written into the Settings sheet so an older
-workbook can be recognised and explained rather than crashing the app."""
+workbook can be recognised and explained rather than crashing the app.
+
+3 added the Shifts sheet's Active column and the Staff sheet's Initials column.
+Both are optional and a version 2 workbook still reads correctly, so the bump
+exists to tell somebody their template predates two useful options rather than to
+reject their file."""

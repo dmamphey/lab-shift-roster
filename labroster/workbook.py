@@ -126,6 +126,11 @@ class Reader:
 
     def __init__(self, source):
         self.problems: list[Problem] = []
+        #: Shifts the workbook defines but the laboratory has switched off.
+        #: Kept, rather than discarded, so that requirements and benches can
+        #: tell "switched off" from "misspelt" — the first is deliberate and the
+        #: second is a mistake worth reporting.
+        self.inactive_shifts: list[ShiftType] = []
         try:
             self.workbook = load_workbook(source, data_only=True)
         except (zipfile.BadZipFile, InvalidFileException) as error:
@@ -403,6 +408,8 @@ class Reader:
 
             person = Staff(
                 staff_id=staff_id, name=name,
+                # Optional: blank means "work it out from the name".
+                initials=str(record.get("initials") or "").strip(),
                 job_title=str(record.get("jobtitle") or "").strip(),
                 band=str(record.get("band") or "").strip(),
                 registered=_is_yes(record.get("registeredbms"), True),
@@ -569,18 +576,35 @@ class Reader:
                 name=str(record.get("name") or code).strip(),
                 start=start, end=end,
                 days=str(record.get("days") or "All").strip() or "All",
+                # Absent column, or a blank cell, means the shift runs. A
+                # workbook written before this column existed must keep working
+                # exactly as it did, and "I left it empty" has to mean the same
+                # as "yes" or every existing roster would silently empty itself.
+                active=_is_yes(record.get("active"), default=True),
                 is_night=_is_yes(record.get("nightshift")),
                 colour=str(record.get("colour") or "D9E1F2").strip().lstrip("#").upper(),
                 font_colour=str(record.get("fontcolour")
                                 or "000000").strip().lstrip("#").upper(),
             ))
 
+        # Split rather than filter, so the sheets that refer to shift codes can
+        # tell a switched-off shift from a misspelt one.
+        self.inactive_shifts = [shift for shift in shifts if not shift.active]
+        active = [shift for shift in shifts if shift.active]
+
         if not shifts:
             self.add(ERROR, "Shifts",
                      "No shifts are defined, so no roster can be produced. Add the "
                      "shifts your laboratory runs, with their start and finish "
                      "times.")
-        return shifts
+        elif not active:
+            # A different problem from an empty sheet, and worth its own words:
+            # the shifts are all there, somebody has just turned every one off.
+            self.add(ERROR, "Shifts",
+                     "Every shift on the Shifts sheet is marked as not active, so "
+                     "there is nothing to roster. Set Active to Yes for at least "
+                     "one shift.")
+        return active
 
     def read_requirements(self, shifts: list[ShiftType]) -> list[ShiftRequirement]:
         sheet = self.sheet("Shift Requirements", "ShiftRequirements",
@@ -592,13 +616,24 @@ class Reader:
             return []
 
         rows = self.table(sheet, ["Shift Code", "Min Staff"], "Shift Requirements")
+        # `shifts` has already had the inactive ones filtered out, so a
+        # code that is switched off is neither known nor a mistake — it is
+        # its own third state, and both sheets below treat it as such.
         codes = {shift.code for shift in shifts}
+        inactive_codes = {shift.code for shift in self.inactive_shifts}
         requirements: list[ShiftRequirement] = []
 
         for record in rows:
             row_number = record.get("_row")
             code = str(record.get("shiftcode") or "").strip()
             if not code:
+                continue
+            if code in inactive_codes:
+                # Not an error, and deliberately not a warning either. Leaving
+                # the requirement in place is the correct way to switch a shift
+                # off for a while: it is still there, correct, and waiting for
+                # the shift to come back. Complaining about it every run would
+                # train people to ignore the warnings that matter.
                 continue
             if code not in codes:
                 self.add(ERROR, "Shift Requirements",
@@ -645,7 +680,11 @@ class Reader:
         if sheet is None:
             return []
         rows = self.table(sheet, ["Bench", "Discipline"], "Benches")
+        # `shifts` has already had the inactive ones filtered out, so a
+        # code that is switched off is neither known nor a mistake — it is
+        # its own third state, and both sheets below treat it as such.
         codes = {shift.code for shift in shifts}
+        inactive_codes = {shift.code for shift in self.inactive_shifts}
         held = {record.discipline.upper() for record in competencies}
         benches: list[Bench] = []
 
@@ -670,13 +709,16 @@ class Reader:
             shift_codes = [part.strip() for part
                            in re.split(r"[,;|]", str(record.get("shiftcodes") or ""))
                            if part.strip()]
-            unknown = [code for code in shift_codes if code not in codes]
+            # A reference to a shift that has been switched off is dropped
+            # silently, for the same reason as on the requirements sheet.
+            unknown = [code for code in shift_codes
+                       if code not in codes and code not in inactive_codes]
             if unknown:
                 self.add(WARNING, "Benches",
                          f"Bench '{name}' refers to shift code(s) "
                          f"{', '.join(unknown)} that are not on the Shifts sheet.",
                          row=row_number)
-                shift_codes = [code for code in shift_codes if code in codes]
+            shift_codes = [code for code in shift_codes if code in codes]
 
             weekend_min = record.get("minstaffweekend")
             benches.append(Bench(

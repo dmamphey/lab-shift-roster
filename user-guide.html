@@ -455,6 +455,12 @@
           <td>Required and must be unique. Every other sheet refers to it. Anything
               consistent works — <code>S01</code>, initials, a payroll number</td></tr>
       <tr><td><strong>Name</strong></td><td>Required. Shown on the rota</td></tr>
+      <tr><td>Initials</td>
+          <td>Optional. These are the initials used in the section allocation
+              rows, and they now appear in their own column on the rota so a
+              reader can tell whose they are. Leave it blank and they are worked
+              out from the name and kept unique; fill it in if your laboratory
+              already uses its own</td></tr>
       <tr><td>Job Title</td><td>Shown in the manager report</td></tr>
       <tr><td>Band</td><td>NHS band or local grade. <code>8a</code> sorts above
           <code>8</code>, which sorts above <code>7</code></td></tr>
@@ -620,6 +626,10 @@
               never disagree with the times</td></tr>
       <tr><td>Days</td><td><code>All</code>, <code>Weekday</code> or
           <code>Weekend</code></td></tr>
+      <tr><td><strong>Active</strong></td>
+          <td><code>Y</code> or <code>N</code>. Set it to <code>N</code> for a
+              shift your laboratory does not run. Leave it blank and the shift
+              runs, so older workbooks are unaffected</td></tr>
       <tr><td>Night Shift</td><td><code>Y</code> brings in the night block,
           recovery days and consecutive-night rules</td></tr>
       <tr><td>Colour / Font Colour</td><td>Six-digit hex. The cells show the actual
@@ -641,6 +651,24 @@
   <p>A shift crossing midnight is handled correctly: <code>21:00</code> to
      <code>07:00</code> is ten hours, not a negative number. A shift that starts and
      finishes at the same time is rejected as a data-entry error.</p>
+
+  <h3>Shifts your laboratory does not run</h3>
+  <p>Those five are a starting point, not a prescription. Plenty of laboratories
+     have no early shift, or run a twilight instead of a late, or work weekends
+     on the same pattern as weekdays.</p>
+  <p><strong>Set Active to <code>N</code></strong> for any shift you do not run.
+     An inactive shift is never rostered, and any requirement or bench that
+     mentions it is quietly ignored for as long as it is switched off — so you
+     do not have to go and unpick the Shift Requirements and Benches sheets to
+     remove one shift.</p>
+  <p>To add a shift, add a row. Give it a code that nothing else uses, then refer
+     to that code from Shift Requirements and Benches as normal.</p>
+  <p>Switching off is deliberately reversible. A laboratory that drops its early
+     shift over the summer can set Active back to <code>Y</code> in September
+     without retyping the times, the colours or the requirements. Deleting the
+     row works too, but you would lose all of that.</p>
+  <p>If every shift is marked inactive, the roster says so plainly rather than
+     producing an empty rota.</p>
 </section>
 
 <!-- ================================================================= -->
@@ -897,6 +925,10 @@
   <h2>17. Roster preview and section coverage</h2>
   <p>Staff down the side, dates across the top, shift codes in the cells, coloured
      as you configured them. The name column stays put while you scroll sideways.</p>
+  <p>The exported rota carries an <strong>Initials</strong> column beside each
+     name. The section allocation rows underneath the grid identify people by
+     their initials, and without the column a reader had to guess whose they
+     were.</p>
   <ul>
     <li><strong>Search staff</strong> by name, role or band</li>
     <li><strong>Filter by shift</strong> to see who is on nights, for instance</li>

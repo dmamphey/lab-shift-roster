@@ -25,7 +25,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from . import SCHEMA_VERSION
-from .models import CREDIT_METHODS, CompetencyStatus, WEEKDAY_SHORT
+from .models import derive_initials, CREDIT_METHODS, CompetencyStatus, WEEKDAY_SHORT
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
 SECTION_FILL = PatternFill("solid", fgColor="2E5496")
@@ -39,7 +39,8 @@ LEFT = Alignment(horizontal="left", vertical="center")
 MANAGER_STEPS = [
     "Complete the Staff sheet: one row per member of staff.",
     "Complete the Competencies sheet: one row per person per discipline.",
-    "Complete the Shifts sheet: the shifts your laboratory runs, with times.",
+    "Complete the Shifts sheet: the shifts your laboratory runs, with times. "
+    "Set Active to No for any shift you do not run.",
     "Add leave and availability: the Leave sheet, and Week Patterns if anyone "
     "works alternating weeks.",
     "Configure requirements: the Shift Requirements and Benches sheets set the "
@@ -69,6 +70,15 @@ INSTRUCTION_NOTES = [
     ("Competencies — only Competent, Trainer and Assessor count as cover. "
      "In Training and Supervised do not, because those staff need somebody with "
      "them. Expired competencies never count.", False),
+    ("Shifts — the five shifts below are a starting point, not a prescription. "
+     "Set Active to No for any your laboratory does not run, and add a row for "
+     "any it does. An inactive shift is never rostered, and requirements or "
+     "benches that mention it are ignored while it is off — so you can switch "
+     "one back on later without retyping anything.", False),
+    ("Staff — Initials is optional. Leave it blank and the roster works them out "
+     "from the name, keeping them unique. Fill it in if your laboratory already "
+     "uses its own. These are the initials that appear in the section "
+     "allocation rows.", False),
     ("Shift Requirements — Required Competencies is written as discipline and "
      "number, for example: BT:1, HAEM:2, COAG:1", False),
     ("Benches — each bench needs its own person. One member of staff is not "
@@ -139,7 +149,8 @@ def _colour_previews(sheet, header_row, row_count) -> None:
     that font colour applied, and the Preview cell shows the shift name exactly as
     it will appear on the roster.
     """
-    colour_column, font_column, preview_column = 7, 8, 9
+    # Moved right by one when Active was inserted at column 6.
+    colour_column, font_column, preview_column = 8, 9, 10
     for offset in range(row_count):
         row = header_row + 1 + offset
         background = str(sheet.cell(row=row, column=colour_column).value
@@ -193,7 +204,7 @@ def _list_validation(sheet, header_row, column, options, last_row=400):
 # --------------------------------------------------------------------------
 
 STAFF_HEADERS = [
-    "Staff ID", "Name", "Job Title", "Band", "Registered BMS", "Senior",
+    "Staff ID", "Name", "Initials", "Job Title", "Band", "Registered BMS", "Senior",
     "Shift Coordinator", "Trainee", "Contracted Weekly Hours", "FTE",
     "Working Pattern", "Pattern Cycle (weeks)",
     *WEEKDAY_SHORT,
@@ -202,7 +213,7 @@ STAFF_HEADERS = [
     "Max Weekends", "Max Hours This Period", "Max Weekly Hours",
     "Group", "Restrictions", "Notes",
 ]
-STAFF_WIDTHS = [10, 20, 20, 7, 11, 8, 12, 8, 13, 6, 16, 11,
+STAFF_WIDTHS = [10, 20, 9, 20, 7, 11, 8, 12, 8, 13, 6, 16, 11,
                 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 12, 10, 11, 10, 11, 13, 13,
                 10, 20, 20]
 
@@ -213,9 +224,9 @@ COMPETENCY_HEADERS = [
 ]
 COMPETENCY_WIDTHS = [10, 20, 11, 26, 13, 13, 13, 13, 9, 9, 14, 22]
 
-SHIFT_HEADERS = ["Code", "Name", "Start", "End", "Days", "Night Shift",
+SHIFT_HEADERS = ["Code", "Name", "Start", "End", "Days", "Active", "Night Shift",
                  "Colour", "Font Colour", "Preview"]
-SHIFT_WIDTHS = [8, 16, 9, 9, 12, 11, 10, 11, 16]
+SHIFT_WIDTHS = [8, 16, 9, 9, 12, 9, 11, 10, 11, 16]
 
 REQUIREMENT_HEADERS = [
     "Shift Code", "Days", "Min Staff", "Min Registered BMS", "Min Senior",
@@ -241,12 +252,15 @@ LEAVE_TYPE_HEADERS = ["Code", "Label", "Colour", "Font Colour",
                       "Credited Hours Method", "Fixed Hours Per Day"]
 LEAVE_TYPE_WIDTHS = [10, 30, 10, 11, 22, 22, 17]
 
+#: The seeded shifts. Every laboratory works a different pattern, so these are a
+#: starting point to switch off or edit, not a prescription — which is what the
+#: Active column is for.
 DEFAULT_SHIFTS = [
-    ("E", "Early", "07:00", "15:00", "Weekday", "N", "FFF2CC", "000000"),
-    ("C", "Core", "09:00", "17:30", "Weekday", "N", "D9E1F2", "000000"),
-    ("L", "Late", "13:00", "21:00", "Weekday", "N", "00B0F0", "000000"),
-    ("N", "Night", "21:00", "07:00", "All", "Y", "7030A0", "FFFFFF"),
-    ("W", "Weekend Day", "09:00", "17:30", "Weekend", "N", "00B050", "FFFFFF"),
+    ("E", "Early", "07:00", "15:00", "Weekday", "Y", "N", "FFF2CC", "000000"),
+    ("C", "Core", "09:00", "17:30", "Weekday", "Y", "N", "D9E1F2", "000000"),
+    ("L", "Late", "13:00", "21:00", "Weekday", "Y", "N", "00B0F0", "000000"),
+    ("N", "Night", "21:00", "07:00", "All", "Y", "Y", "7030A0", "FFFFFF"),
+    ("W", "Weekend Day", "09:00", "17:30", "Weekend", "Y", "N", "00B050", "FFFFFF"),
 ]
 
 # "Counts Towards Contracted Hours" is what stops the roster handing somebody
@@ -424,7 +438,10 @@ def _configuration_sheets(workbook, requirements=None) -> None:
              "colour, and Preview shows how the shift will look on the roster.")
     _write_rows(sheet, header_row, DEFAULT_SHIFTS)
     _colour_previews(sheet, header_row, len(DEFAULT_SHIFTS))
-    _yes_no(sheet, header_row, [6], last_row=60)
+    # Active (6) and Night Shift (7). Active is offered on every row down the
+    # sheet, not just the seeded ones, so a shift added later can be switched
+    # off the same way.
+    _yes_no(sheet, header_row, [6, 7], last_row=60)
     _list_validation(sheet, header_row, 5,
                      ["All", "Weekday", "Weekend"], last_row=60)
 
@@ -467,7 +484,10 @@ def _empty_people_sheets(workbook) -> None:
         note="One row per member of staff. Staff ID must be unique — the other "
              "sheets refer to it. Leave the Mon–Sun columns blank for somebody "
              "who is fully flexible.")
-    _yes_no(sheet, header_row, [5, 6, 7, 8, *range(13, 20), 24, 25])
+    # Every index moved right by one when Initials was inserted at
+    # column 3. Written out rather than offset in a loop so a reader
+    # can check them against STAFF_HEADERS by counting.
+    _yes_no(sheet, header_row, [6, 7, 8, 9, *range(14, 21), 25, 26])
 
     sheet, header_row = _sheet(
         workbook, "Competencies", COMPETENCY_HEADERS, COMPETENCY_WIDTHS,
@@ -508,6 +528,22 @@ def build_blank_template(path) -> None:
 # --------------------------------------------------------------------------
 # the example laboratory
 # --------------------------------------------------------------------------
+
+def _with_initials(rows):
+    """Insert an Initials value after the name in each staff row.
+
+    The demo rows are positional tuples, and hand-editing a dozen of them to add
+    a column is exactly how a value ends up one place out.
+
+    The values come from the same function the exporter uses, so the examples
+    show the real convention rather than a second approximation of it. A first
+    attempt derived them here instead, and immediately gave two of the fictional
+    staff the same initials — the copy had the derivation but not the uniqueness
+    step.
+    """
+    codes = derive_initials((row[0], row[1], "") for row in rows)
+    return [(row[0], row[1], codes.get(row[0], ""), *row[2:]) for row in rows]
+
 
 def _demo_staff(period_start: date):
     """A fictional department, built to exercise every warning.
@@ -884,9 +920,12 @@ def _build_example(path, flavour: str) -> None:
         workbook, "Staff", STAFF_HEADERS, STAFF_WIDTHS,
         note=f"{label} — every person below is fictional. Replace with your own "
              f"staff before using this for real planning.")
-    _write_rows(sheet, header_row,
-                _balanced_staff() if balanced else _demo_staff(first))
-    _yes_no(sheet, header_row, [5, 6, 7, 8, *range(13, 20), 24, 25])
+    _write_rows(sheet, header_row, _with_initials(
+        _balanced_staff() if balanced else _demo_staff(first)))
+    # Every index moved right by one when Initials was inserted at
+    # column 3. Written out rather than offset in a loop so a reader
+    # can check them against STAFF_HEADERS by counting.
+    _yes_no(sheet, header_row, [6, 7, 8, 9, *range(14, 21), 25, 26])
 
     sheet, header_row = _sheet(
         workbook, "Competencies", COMPETENCY_HEADERS, COMPETENCY_WIDTHS,

@@ -185,6 +185,10 @@ class Staff:
 
     staff_id: str
     name: str
+    #: Optional. Derived from the name when blank — see ``export._initials`` —
+    #: but a laboratory that already uses its own convention can state it, and
+    #: what it states is what appears on the roster.
+    initials: str = ""
     job_title: str = ""
     band: str = ""
     registered: bool = True               # e.g. HCPC-registered BMS
@@ -313,6 +317,15 @@ class ShiftType:
     start: time
     end: time
     days: str = "All"
+    #: Whether the laboratory currently runs this shift.
+    #:
+    #: Not every laboratory works the same pattern — plenty have no early shift
+    #: at all — and a seeded shift that cannot be switched off makes the workbook
+    #: unusable for them. Deleting the row works too, but it is destructive, has
+    #: to be repeated across the requirements and bench sheets, and has to be
+    #: retyped if the pattern changes back. Inactive shifts stay in the workbook,
+    #: are never scheduled, and anything that refers to them is quietly ignored.
+    active: bool = True
     is_night: bool = False
     colour: str = "D9E1F2"
     font_colour: str = "000000"
@@ -670,3 +683,62 @@ class Config:
         if not weekly:
             weekly = 37.5 * (person.fte or 1.0)
         return round(weekly * self.period.weeks, 2)
+
+
+def derive_initials(people) -> dict[str, str]:
+    """Short, unique labels for a group of people.
+
+    ``people`` is an iterable of ``(key, name, supplied)``. A supplied value is
+    used exactly as written — that is the laboratory's own convention and this
+    code is in no position to overrule it on their own rota. Everything else is
+    derived from the name and then made unique, against the other derived codes
+    and against the supplied ones.
+
+    It lives here, rather than in the exporter that first needed it, because the
+    blank workbook has to fill the same column with the same values. When the
+    template grew its own copy of the rule, two people in the demo data ended up
+    sharing "AS" — the derivation was duplicated, so only one copy had the
+    uniqueness step.
+    """
+    supplied: dict[str, str] = {}
+    proposed: dict[str, str] = {}
+    names: dict[str, str] = {}
+
+    for key, name, given in people:
+        names[key] = str(name or "")
+        given = str(given or "").strip()
+        if given:
+            supplied[key] = given
+            continue
+        parts = [part for part in names[key].split() if part]
+        if not parts:
+            proposed[key] = str(key)[:3]
+        elif len(parts) == 1:
+            proposed[key] = parts[0][:2].upper()
+        else:
+            proposed[key] = (parts[0][0] + parts[-1][0]).upper()
+
+    by_code: dict[str, list[str]] = {}
+    for key, code in proposed.items():
+        by_code.setdefault(code, []).append(key)
+
+    final: dict[str, str] = dict(supplied)
+    for code, owners in by_code.items():
+        if len(owners) == 1 and code not in final.values():
+            final[owners[0]] = code
+            continue
+        for key in owners:
+            parts = names[key].split()
+            surname = parts[-1] if len(parts) > 1 else (parts[0] if parts else "")
+            extended, index = code + surname[1:2].lower(), 2
+            while extended in final.values() and index <= len(surname):
+                extended = code + surname[1:index + 1].lower()
+                index += 1
+            # A name too short to extend still has to end up with its own label,
+            # so fall back to numbering rather than colliding silently.
+            suffix = 2
+            while extended in final.values():
+                extended = f"{code}{suffix}"
+                suffix += 1
+            final[key] = extended
+    return final
