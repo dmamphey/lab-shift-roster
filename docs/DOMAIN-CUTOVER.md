@@ -1,73 +1,106 @@
 # Moving Lab Shift Roster to its own domain
 
-Recommended domain (checked available via RDAP on 2026-10-07): **labshiftroster.com**,
-with `.co.uk` and `.io` registered defensively so nobody else can grab the UK or
-developer-facing variant and redirect confused visitors elsewhere.
+**labshiftroster.com** is registered (purchased on Cloudflare, 2026-10-07) and is the
+permanent home of the Lab Shift Roster product -- not a subdomain, not a path under
+`tools.optymumss.com`, and not GitHub Pages.
 
-This cutover is a two-sided move: this repo (the free local-first app) gets its
-own CNAME, and the separate `lab-shift-roster-cloud` repo serves the hosted team
-tier from a subdomain. Nothing here should be done until the domain is actually
-registered and the DNS records below resolve -- doing it earlier risks a window
-where the live tool is unreachable from its existing links.
+## Architecture (what actually exists now -- read this before touching DNS)
 
-## Step 1 -- Register the domain
+This cutover plan was originally written assuming a two-host split: GitHub Pages
+serving the free app at the apex domain, with a Cloudflare Worker only on an
+`app.` subdomain for the hosted tier. **That is no longer the architecture.**
+As of the `lab-shift-roster-cloud` repo's Milestone 1-3 build, one Cloudflare
+Worker serves the entire product from a single origin:
 
-You do this part; I cannot purchase domains. Register:
-- `labshiftroster.com` (primary)
-- `labshiftroster.co.uk` and `labshiftroster.io` (defensive -- point these at the
-  .com via your registrar's forwarding, or just park them; either is fine)
+```
+labshiftroster.com
+        |
+   Cloudflare Worker (lab-shift-roster-cloud)
+        |
+        +-- /                   public marketing pages (home, pricing, contact)
+        +-- /app/*              the Free app's static files, served unmodified
+        |                       via Workers Static Assets (synced from this repo
+        |                       by lab-shift-roster-cloud/scripts/sync-free-app.mjs)
+        +-- /login, /signup     authenticated account pages (hono/jsx, server-rendered)
+        +-- /account/*          Pro/Enterprise workspace: team, configuration,
+        |                       workflows, audit history, sites, reporting, billing
+        +-- /auth/*, /orgs/*,   the JSON API behind all of the above
+        |   /billing/*, /contact
+        +-- D1                  organisations, users, subscriptions, sites, workflows
+        +-- Stripe              Pro self-serve billing + Enterprise sales-led billing
+```
 
-## Step 2 -- DNS records
+There is no GitHub Pages involvement in serving `labshiftroster.com` at all. This
+`lab-roster` repo remains the **source of truth** for the Free app's code (the
+Python roster engine, the vendored Pyodide runtime, `index.html`) -- the Worker
+just copies those files in at deploy time and serves them unmodified. Nothing
+about how the Free app processes data changes: it is still 100% client-side,
+regardless of which domain or which server serves the static files.
 
-At your registrar, for `labshiftroster.com`, add:
+## Step 1 -- Domain registration: done
 
-| Type  | Host | Value                              | Notes                                   |
-|-------|------|-------------------------------------|------------------------------------------|
-| CNAME | `@` or apex via ALIAS/ANAME | `dmamphey.github.io` | The free app (GitHub Pages). If your registrar doesn't support a CNAME at the apex, use its ALIAS/ANAME equivalent, or four `A` records to GitHub Pages' IPs (185.199.108.153, .109.153, .110.153, .111.153) plus an `AAAA` set for IPv6 -- GitHub's own custom-domain docs list the current addresses. |
-| CNAME | `www` | `dmamphey.github.io` | So `www.labshiftroster.com` also resolves |
-| CNAME | `app` | `<your-worker>.workers.dev` initially, then the custom domain Cloudflare issues once attached | The hosted team tier (Cloudflare Worker). Exact target comes from Cloudflare's dashboard when you add a custom domain to the Worker -- it will tell you precisely what to set. |
+`labshiftroster.com` is registered and managed on Cloudflare (the same account
+that will host the Worker), which is what makes attaching it as a Worker custom
+domain a dashboard click rather than external DNS-provider configuration -- see
+Step 3. The `.co.uk`/`.io` defensive registrations discussed earlier were not
+pursued; revisit only if squatting becomes an actual problem.
 
-Wait for DNS to actually resolve (`dig labshiftroster.com` / `dig app.labshiftroster.com`)
-before Step 3. This can take minutes to a day depending on the registrar.
+## Step 2 -- Deploy the Worker (before touching DNS)
 
-## Step 3 -- Point this repo at the new domain
+In `lab-shift-roster-cloud`:
+1. `wrangler d1 create lab_shift_roster_cloud` (if not already done) and paste
+   the database id into `wrangler.toml`.
+2. `npm run db:migrate:remote`.
+3. Set secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+   `STRIPE_PRICE_ID_PRO_MONTHLY`, `STRIPE_PRICE_ID_PRO_ANNUAL`, `SESSION_SECRET`,
+   `RESEND_API_KEY` (`STRIPE_PRICE_ID_ENTERPRISE` only if a canonical Enterprise
+   Price is in use -- Enterprise is sales-led and often doesn't need one, see
+   that repo's README).
+4. Update `wrangler.toml`'s `APP_ORIGIN` var to `https://labshiftroster.com` and
+   `CONTACT_FROM_EMAIL` to a Resend-verified address once that domain is
+   verified in Resend.
+5. `npm run deploy` (this runs `sync:free-app` first, pulling this repo's
+   current files into the Worker's static assets).
+6. Confirm the Worker serves correctly on its `workers.dev` subdomain --
+   including `/app/` actually running the Pyodide engine -- before attaching
+   the real domain in Step 3.
 
-Once DNS resolves, two commits (I will do these once you confirm DNS is live):
+## Step 3 -- Attach labshiftroster.com to the Worker
 
-1. Add a `CNAME` file containing `labshiftroster.com` to this repo's root.
-   GitHub Pages treats a project repo with its own `CNAME` file as having an
-   independent custom domain, rather than being served as a path under
-   `tools.optymumss.com`'s site. This is the actual cutover moment.
-2. Update every in-app reference from the `tools.optymumss.com/lab-shift-roster/`
-   path to `labshiftroster.com`: `index.html` (meta tags, canonical links, any
-   hardcoded absolute URLs), `user-guide.html`, `README.md`, `CHANGELOG.md`, and
-   the generated-workbook footer text in `labroster/template.py` /
-   `labroster/export.py` if either hardcodes the old path.
+In the Cloudflare dashboard: the `lab-shift-roster-cloud` Worker -> Settings ->
+Domains & Routes -> Add Custom Domain -> `labshiftroster.com` (and optionally
+`www.labshiftroster.com`, redirecting to the apex). Because the domain is
+already on this Cloudflare account, this single step both creates the
+necessary DNS records and provisions the TLS certificate -- there is no
+separate registrar-side DNS configuration to do, unlike the old two-host plan.
 
-## Step 4 -- Update the Optymum SS site
+This is the actual go-live moment: once attached, `labshiftroster.com` serves
+the Worker directly, with no window where the domain points at GitHub Pages or
+anywhere else first.
 
-Per your decision: replace the Lab Shift Roster card/links on
-`tools.optymumss.com` with a link out to `labshiftroster.com`, rather than
-removing the product from the site entirely. I have the exact six-line diff
-prepared (see `dmamphey.github.io` repo, not committed yet) -- it swaps every
-`https://tools.optymumss.com/lab-shift-roster/` URL for
-`https://labshiftroster.com/` and keeps the card copy as-is.
+**This step has not been performed.** It is a deliberate, manual, one-time
+action for the account owner to take when ready -- not something any
+automated process should do on its own.
 
-**Do this only after Step 3 is live**, so the Optymum SS site never links to a
-domain that isn't serving yet.
+## Step 4 -- Update the Optymum SS site's outbound links
 
-## Step 5 -- Cloudflare Worker custom domain
-
-In the Cloudflare dashboard, under the `lab-shift-roster-cloud` Worker ->
-Settings -> Domains & Routes, add `app.labshiftroster.com` as a custom domain.
-Cloudflare provisions the TLS certificate automatically once the CNAME in Step 2
-resolves. Update `wrangler.toml`'s `APP_ORIGIN` var and the Worker's CORS origin
-to match (currently a placeholder of `http://localhost:5173` for local dev).
+`dmamphey.github.io` already has a prepared, unmerged branch
+(`lab-shift-roster-new-domain`, draft PR #1, "Point Lab Shift Roster at
+labshiftroster.com (blocked on DNS)") that swaps the three
+`tools.optymumss.com/lab-shift-roster/` links (hero button, tool card, footer)
+for `https://labshiftroster.com/`. That branch does **not** touch
+`dmamphey.github.io`'s own `CNAME` or any GitHub Pages hosting configuration
+for `labshiftroster.com` -- it only changes where visitors clicking through
+from the Optymum SS site land. It is still correct and compatible with this
+architecture and does not need rewriting; merge it once Step 3 is live, not
+before, so the Optymum SS site never links to a domain that isn't serving yet.
 
 ## What does NOT change
 
-- `tools.optymumss.com`'s DNS and GitHub Pages custom-domain configuration
+- `tools.optymumss.com`'s own DNS and GitHub Pages custom-domain configuration
   (the Optymum SS multi-product site) -- untouched.
-- The `dmamphey.github.io` repository's own CNAME.
-- Nothing about how the free local app processes data -- it is still 100%
-  client-side regardless of which domain serves the static files.
+- The `dmamphey.github.io` repository's own `CNAME` (still `tools.optymumss.com`).
+- This repo (`lab-roster`) itself is not deployed anywhere directly -- it is
+  synced into the Worker's static assets at `lab-shift-roster-cloud` deploy
+  time, same as before.
+- Nothing about how the Free app processes data -- still 100% client-side.
