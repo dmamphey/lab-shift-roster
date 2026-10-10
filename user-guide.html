@@ -5,44 +5,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>User guide — Lab Shift Roster 1.1 Beta</title>
 <meta name="description" content="Complete user guide to Lab Shift Roster: filling in the workbook, generating a draft roster, reading the dashboard and issues, adjusting assignments by hand, and exporting for staff or managers.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2317395f'/%3E%3Cpath d='M22 32 L32 22 L42 32 L32 42 Z' fill='%231878c4'/%3E%3Cpath d='M32 8 L38 14 L32 20 L26 14 Z' fill='%231878c4'/%3E%3Cpath d='M32 44 L38 50 L32 56 L26 50 Z' fill='%231878c4'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2064%2064%22%3E%20%3Ctitle%3ELab%20Shift%20Roster%3C/title%3E%20%3Cstyle%3E%20.frame%20%7B%20fill:%20%230B2D4F%3B%20%7D%20.edge%20%7B%20fill:%20%233B82C4%3B%20%7D%20%40media%20%28prefers-color-scheme:%20dark%29%20%7B%20.frame%20%7B%20fill:%20%232B6CB0%3B%20%7D%20.edge%20%7B%20fill:%20%2386BDEF%3B%20%7D%20%7D%20%3C/style%3E%20%3Cpolygon%20class=%22frame%22%20points=%2232%2C2%2058.5%2C17%2058.5%2C47%2032%2C62%205.5%2C47%205.5%2C17%22/%3E%20%3Cpolygon%20class=%22edge%22%20points=%2232%2C2%205.5%2C17%205.5%2C47%2014%2C42.2%2014%2C21.8%2032%2C11.4%22/%3E%20%3Cpolygon%20points=%2232%2C10.5%2050.5%2C21%2050.5%2C43%2032%2C53.5%2013.5%2C43%2013.5%2C21%22%20fill=%22%23FFFFFF%22/%3E%20%3Crect%20x=%2217%22%20y=%2217%22%20width=%229%22%20height=%229%22%20rx=%221.6%22%20fill=%22%238FA8C8%22/%3E%20%3Crect%20x=%2228%22%20y=%2217%22%20width=%229%22%20height=%229%22%20rx=%221.6%22%20fill=%22%2310B981%22/%3E%20%3Crect%20x=%2217%22%20y=%2228%22%20width=%229%22%20height=%229%22%20rx=%221.6%22%20fill=%22%233B82C4%22/%3E%20%3Cpath%20d=%22M38%2031v7l-7%2011c-.9%201.5.2%203.2%201.9%203.2h14.2c1.7%200%202.8-1.7%201.9-3.2l-7-11v-7%22%20fill=%22none%22%20stroke=%22%23FFFFFF%22%20stroke-width=%226.4%22%20stroke-linejoin=%22round%22%20stroke-linecap=%22round%22/%3E%20%3Cpath%20d=%22M42%2041l-4.6%207.6c-.6%201%20.1%202.1%201.2%202.1h7c1.1%200%201.8-1.1%201.2-2.1L42%2041z%22%20fill=%22%2310B981%22/%3E%20%3Cpath%20d=%22M38%2031v7l-7%2011c-.9%201.5.2%203.2%201.9%203.2h14.2c1.7%200%202.8-1.7%201.9-3.2l-7-11v-7%22%20fill=%22none%22%20stroke=%22%230B2D4F%22%20stroke-width=%223.2%22%20stroke-linejoin=%22round%22%20stroke-linecap=%22round%22/%3E%20%3Cpath%20d=%22M36%2031h8%22%20stroke=%22%230B2D4F%22%20stroke-width=%223.4%22%20stroke-linecap=%22round%22/%3E%20%3C/svg%3E">
+<meta name="theme-color" content="#0B2D4F">
 <style>
   :root {
-    --brand-blue: #1878c4; --brand-navy: #17395f; --brand-blue-tint: #e7f1fa;
-    --bg: #f4f7fb; --panel: #ffffff; --ink: #101720; --muted: #55616f;
-    --line: #d3dce6; --accent: var(--brand-blue); --heading: var(--brand-navy);
-    --soft: var(--brand-blue-tint); --focus: #0b5fff;
-    --critical: #9c1f2b; --critical-bg: #fbe6e8; --critical-line: #e4a9b0;
-    --review: #7d4a00; --review-bg: #fdf3e0; --review-line: #e3c489;
-    --passed: #17603a; --passed-bg: #e4f4ea; --passed-line: #a3d5b7;
+    --brand-blue: #2F6FB0; --brand-navy: #0B2D4F; --brand-blue-tint: #F0F6FC;
+    --bg: #F6F9FC; --panel: #ffffff; --ink: #0F1F33; --muted: #5B6B7F;
+    --line: #D9E4EE; --accent: var(--brand-blue); --heading: var(--brand-navy);
+    --soft: var(--brand-blue-tint); --focus: #2F6FB0;
+    --critical: #B42318; --critical-bg: #FEF3F2; --critical-line: #FECDCA;
+    --review: #92400E; --review-bg: #FFF7E0; --review-line: #F2D58A;
+    --passed: #047857; --passed-bg: #ECFDF5; --passed-line: #A7F3D0;
     --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
-    --hero: linear-gradient(135deg, #17395f 0%, #12629f 55%, #1878c4 100%);
+    --hero: #0B2D4F;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --brand-blue: #4fa3e0; --brand-navy: #a9c6e6; --brand-blue-tint: #16283a;
-      --bg: #0d141c; --panel: #151d27; --ink: #e8eef5; --muted: #97a4b4;
-      --line: #263241; --heading: #cfe1f4; --focus: #7aa7ff;
-      --critical: #f3a1aa; --critical-bg: #2c1a1d; --critical-line: #5d3238;
-      --review: #e8bd74; --review-bg: #2b2417; --review-line: #5b4a26;
-      --passed: #8ad9ab; --passed-bg: #17291f; --passed-line: #2f5540;
-      --hero: linear-gradient(135deg, #0f2742 0%, #16456f 55%, #1c5c92 100%);
+      --brand-blue: #86BDEF; --brand-navy: #E8EFF7; --brand-blue-tint: #12304D;
+      --bg: #0A1626; --panel: #0F2238; --ink: #E8EFF7; --muted: #98ACC1;
+      --line: #1D3550; --heading: #E8EFF7; --focus: #86BDEF;
+      --critical: #F4A59E; --critical-bg: #2D1A1B; --critical-line: #5B3235;
+      --review: #EBC37A; --review-bg: #2B2417; --review-line: #5B4A26;
+      --passed: #7DDBA9; --passed-bg: #112A22; --passed-line: #24513F;
+      --hero: #0B2D4F;
     }
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%;
          scroll-padding-top: 1rem; }
   body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         font: 16px/1.65 "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
          padding: 0 1rem 5rem; }
   .wrap { max-width: 1180px; margin: 0 auto; }
+  .skip-link { position: absolute; left: 1rem; top: -100px; z-index: 100; background: #0B2D4F; color: #fff;
+               padding: .5rem 1rem; border-radius: 8px; text-decoration: none; font-weight: 600; }
+  .skip-link:focus { top: 1rem; }
+
+  /* Application bar, shared with the Free app */
+  .appbar { margin: 0 -1rem; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .appbar-inner { max-width: 1180px; margin: 0 auto; padding: .7rem 1rem; display: flex; align-items: center; gap: 1.25rem; }
+  .brand { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; flex: none; }
+  .brand-mark { width: 32px; height: 32px; flex: none; }
+  .brand-word { font-size: 1.12rem; font-weight: 700; letter-spacing: -.03em; line-height: 1; white-space: nowrap; color: var(--heading); }
+  .brand-accent { color: #2F6FB0; }
+  @media (prefers-color-scheme: dark) { .brand-accent { color: #86BDEF; } }
+  .appbar-nav { margin-left: auto; display: flex; align-items: center; gap: .25rem; }
+  .appbar-nav a { padding: .45rem .75rem; border-radius: 8px; font-weight: 500; text-decoration: none; color: var(--ink); }
+  .appbar-nav a:hover { background: var(--soft); }
+  .appbar-nav a.appbar-cta { background: #0B2D4F; color: #fff; font-weight: 600; margin-left: .25rem; }
+  .appbar-nav a.appbar-cta:hover { background: #1A4876; }
+  @media (prefers-color-scheme: dark) { .appbar-nav a.appbar-cta { background: #5FA0DB; color: #061A2E; } .appbar-nav a.appbar-cta:hover { background: #86BDEF; } }
+  @media (max-width: 640px) { .appbar { margin: 0 -.7rem; } .appbar-nav a:not(.appbar-cta) { display: none; } }
   a { color: var(--accent); }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-  .hero { background: var(--hero); color: #fff; border-radius: 14px;
-          padding: 2rem 2rem 2.1rem; margin: 1.75rem 0 1.5rem; }
+  .hero { background: var(--hero); color: #fff; border-radius: 12px; position: relative; overflow: hidden;
+          padding: 2rem 2rem 2.1rem; margin: 1.5rem 0 1.5rem; }
+  .hero::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: #10B981; }
   .hero h1 { font-size: 2.1rem; margin: 0 0 .35rem; letter-spacing: -.03em; }
-  .hero p { margin: 0 0 .5rem; color: #dbeafc; max-width: 68ch; }
+  .hero p { margin: 0 0 .5rem; color: #B7CBE0; max-width: 68ch; }
   .hero .back { display: inline-block; margin: .9rem .5rem 0 0; color: #fff;
                 font-weight: 600; border: 1px solid rgba(255,255,255,.5);
                 padding: .5rem 1rem; border-radius: 8px; text-decoration: none; }
@@ -146,14 +167,15 @@
        otherwise emit pale text on dark panels. */
     :root {
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      --brand-blue: #1878c4; --brand-navy: #17395f; --brand-blue-tint: #e7f1fa;
-      --bg: #fff; --panel: #fff; --ink: #101720; --muted: #4d5967;
-      --line: #cbd6e2; --heading: #17395f; --focus: #0b5fff;
-      --critical: #9c1f2b; --critical-bg: #fbe6e8; --critical-line: #e4a9b0;
-      --review: #7d4a00; --review-bg: #fdf3e0; --review-line: #e3c489;
-      --passed: #17603a; --passed-bg: #e4f4ea; --passed-line: #a3d5b7;
-      --hero: linear-gradient(135deg, #17395f 0%, #12629f 55%, #1878c4 100%);
+      --brand-blue: #2F6FB0; --brand-navy: #0B2D4F; --brand-blue-tint: #F0F6FC;
+      --bg: #fff; --panel: #fff; --ink: #0F1F33; --muted: #4d5967;
+      --line: #cbd6e2; --heading: #0B2D4F; --focus: #2F6FB0;
+      --critical: #B42318; --critical-bg: #FEF3F2; --critical-line: #FECDCA;
+      --review: #92400E; --review-bg: #FFF7E0; --review-line: #F2D58A;
+      --passed: #047857; --passed-bg: #ECFDF5; --passed-line: #A7F3D0;
+      --hero: #0B2D4F;
     }
+    .appbar, .skip-link { display: none !important; }
     html, body { background: #fff; }
     body { padding: 0; font-size: 10.4pt; line-height: 1.5; }
     .wrap { max-width: none; }
@@ -193,19 +215,61 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#guide">Skip to the guide</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <style>
+    :root { --m1:#1F5FA6; --m2:#0B2D4F; --m3:#082440; --m4:#0B2D4F; --m5:#3B82C4; --m6:#5FA0DB; --mk:#0B2D4F; }
+    @media (prefers-color-scheme: dark) { :root { --m1:#6FB0EA; --m2:#3F86CB; --m3:#2B6CB0; --m4:#2F78BE; --m5:#4F97DB; --m6:#86BDEF; } }
+  </style>
+  <symbol id="lsr-mark" viewBox="0 0 64 64">
+    <polygon points="32,3 57.1,17.5 49.8,21.8 32,11.5" style="fill:var(--m1)"/>
+    <polygon points="57.1,17.5 57.1,46.5 49.8,42.3 49.8,21.8" style="fill:var(--m2)"/>
+    <polygon points="57.1,46.5 32,61 32,52.5 49.8,42.3" style="fill:var(--m3)"/>
+    <polygon points="32,61 6.9,46.5 14.2,42.3 32,52.5" style="fill:var(--m4)"/>
+    <polygon points="6.9,46.5 6.9,17.5 14.2,21.8 14.2,42.3" style="fill:var(--m5)"/>
+    <polygon points="6.9,17.5 32,3 32,11.5 14.2,21.8" style="fill:var(--m6)"/>
+    <polygon points="32,11.5 49.8,21.8 49.8,42.3 32,52.5 14.2,42.3 14.2,21.8" fill="#FFFFFF"/>
+    <rect x="18.2" y="17.6" width="6.4" height="6.4" rx="1.1" fill="#C9D8E8"/>
+    <rect x="26.8" y="17.6" width="6.4" height="6.4" rx="1.1" fill="#8FA8C8"/>
+    <rect x="35.4" y="17.6" width="6.4" height="6.4" rx="1.1" fill="#10B981"/>
+    <rect x="18.2" y="26.2" width="6.4" height="6.4" rx="1.1" fill="#3B82C4"/>
+    <rect x="26.8" y="26.2" width="6.4" height="6.4" rx="1.1" fill="#8FA8C8"/>
+    <rect x="18.2" y="34.8" width="6.4" height="6.4" rx="1.1" fill="#DCE6F1"/>
+    <path d="M38.6 30.5v7.2L31.4 49.2c-.9 1.5.2 3.3 1.9 3.3h14.4c1.7 0 2.8-1.8 1.9-3.3l-7.2-11.5v-7.2" fill="none" stroke="#FFFFFF" stroke-width="5.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M42.4 40.4l-5.3 8.4c-.6.9.1 2 1.1 2h8.5c1 0 1.7-1.1 1.1-2l-5.4-8.4z" fill="#10B981"/>
+    <path d="M38.6 30.5v7.2L31.4 49.2c-.9 1.5.2 3.3 1.9 3.3h14.4c1.7 0 2.8-1.8 1.9-3.3l-7.2-11.5v-7.2" fill="none" stroke="#0B2D4F" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M36.9 30.5h7.4" stroke="#0B2D4F" stroke-width="2.6" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="appbar">
+  <div class="appbar-inner">
+    <a class="brand" href="https://labshiftroster.com/" aria-label="Lab Shift Roster product site">
+      <svg class="brand-mark" aria-hidden="true" focusable="false"><use href="#lsr-mark"/></svg>
+      <span class="brand-word">Lab Shift <span class="brand-accent">Roster</span></span>
+    </a>
+    <nav class="appbar-nav" aria-label="Lab Shift Roster">
+      <a href="index.html">Free app</a>
+      <a href="https://labshiftroster.com/login">Log in</a>
+      <a class="appbar-cta" href="https://labshiftroster.com/pricing">Explore Pro</a>
+    </nav>
+  </div>
+</div>
+
 <div class="wrap">
 
 <header class="hero">
   <h1>Lab Shift Roster — user guide</h1>
-  <p>A free, secure and intelligent workforce planning tool for diagnostic
-     laboratories.</p>
+  <p>Free, secure workforce planning for diagnostic laboratories. Rules-based, and always a
+     draft for your review.</p>
   <p>This guide covers everything from filling in the workbook to exporting a
      finished rota. Version 1.1 Beta.</p>
   <a class="back" href="index.html">&larr; Back to Lab Shift Roster</a>
   <a class="back" href="Lab-Shift-Roster-1.1-User-Guide.pdf">Download as PDF</a>
   <p class="print-url">Use the tool at
-     <a href="https://tools.optymumss.com/lab-shift-roster/"
-        >https://tools.optymumss.com/lab-shift-roster</a>.</p>
+     <a href="https://labshiftroster.com/app/"
+        >https://labshiftroster.com/app</a>.</p>
 </header>
 
 <div class="layout">
@@ -240,7 +304,7 @@
   </ol>
 </nav>
 
-<main>
+<main id="guide">
 
 <!-- ================================================================= -->
 <section class="card" id="what">
@@ -1206,6 +1270,7 @@
   <p>Lab Shift Roster 1.1 Beta — user guide. Every roster produced is a draft
      requiring managerial review.</p>
   <p><a href="index.html">Back to Lab Shift Roster</a></p>
+  <p>Lab Shift Roster is a product of Optymum SS Ltd.</p>
 </footer>
 
 </main>
