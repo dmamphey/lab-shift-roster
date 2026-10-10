@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "user-guide.html"
 DEFAULT_OUTPUT = ROOT / "Lab-Shift-Roster-1.1-User-Guide.pdf"
 
-SITE = "https://tools.optymumss.com/lab-shift-roster/"
+SITE = "https://labshiftroster.com/app/"
 
 #: Where Chrome and Edge install themselves on Windows, then the usual names on
 #: PATH for macOS and Linux.  The first one that exists is used.
