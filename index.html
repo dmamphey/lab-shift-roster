@@ -363,11 +363,33 @@
     </span>
     <nav class="appbar-nav" aria-label="Lab Shift Roster">
       <a href="https://labshiftroster.com/app/user-guide">User guide</a>
-      <a href="https://labshiftroster.com/login">Log in</a>
-      <a class="appbar-cta" href="https://labshiftroster.com/pricing">Explore Pro</a>
+      <a id="appbar-login" href="https://labshiftroster.com/login">Log in</a>
+      <a id="appbar-cta" class="appbar-cta" href="https://labshiftroster.com/pricing">Explore Pro</a>
     </nav>
   </div>
 </div>
+<script>
+  /* Shows the signed-in state in the header. The app itself is account-free and
+     never needs this: it asks the product site who is signed in (a same-origin
+     request that carries only the session cookie, nothing about any workbook or
+     roster) and, if someone is, swaps "Log in" for "Account". Anywhere else, or
+     offline, the links simply stay as they are. */
+  (function () {
+    var login = document.getElementById("appbar-login");
+    var cta = document.getElementById("appbar-cta");
+    if (!login || !cta || !window.fetch || location.protocol.indexOf("http") !== 0) return;
+    fetch("/auth/me", { credentials: "same-origin", headers: { accept: "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.user) return;
+        login.textContent = "Account";
+        login.href = "https://labshiftroster.com/account";
+        cta.textContent = "Your plan";
+        cta.href = "https://labshiftroster.com/account/billing";
+      })
+      .catch(function () {});
+  })();
+</script>
 
 <div class="wrap">
 <main id="main">
