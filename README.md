@@ -99,6 +99,13 @@ only the workforce information the tool needs; do not add sensitive personal
 details, and never add patient-identifiable information — Lab Shift Roster does not
 require any.
 
+## Usage analytics
+
+The page loads one shared script (`/assets/analytics.js`, served by the labshiftroster.com Worker) that shows a consent
+banner and loads Google Analytics only after the visitor accepts; the three product events in `trackLabRosterEvent()` are
+silently dropped without consent. Anywhere else (a local copy, another host) the script is absent or inert and nothing is
+measured. See the cloud repository's README, "Analytics".
+
 ## Running and deploying it
 
 Any static host will serve it. The `labroster` package must sit beside

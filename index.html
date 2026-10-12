@@ -5,26 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Free Laboratory Roster Tool | Lab Shift Roster</title>
 
-<!-- Google Analytics.
+<!-- Google Analytics, opt-in.
      Measures how the application is used: page views and three product events.
-     Advertising features are switched off, and no workforce, workbook or roster
-     information is ever passed to it — see trackLabRosterEvent() below, which is
-     the only place in this application that sends an event. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-L962W0939Q"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-
-  function gtag() {
-    dataLayer.push(arguments);
-  }
-
-  gtag("js", new Date());
-
-  gtag("config", "G-L962W0939Q", {
-    allow_google_signals: false,
-    allow_ad_personalization_signals: false
-  });
-</script>
+     Nothing is loaded and no cookie is set until the visitor accepts (see the
+     banner and the Cookie settings link). Advertising features are switched off,
+     and no workforce, workbook or roster information is ever passed to it: see
+     trackLabRosterEvent() below, which is the only place in this application that
+     sends an event. It is a no-op unless the visitor has consented.
+     The tag lives in one shared script on labshiftroster.com, which the website
+     pages use too, so consent is given once for both. Anywhere else (a local copy,
+     another host) the script is absent or inert, and nothing is measured. -->
+<script src="/assets/analytics.js" data-measurement-id="G-L962W0939Q" data-hosts="labshiftroster.com" defer></script>
 <meta name="description" content="Free diagnostic laboratory roster tool: build competency-aware draft rotas from an Excel workbook, processed locally in your browser, never uploaded.">
 <meta name="author" content="Optymum SS (UK) Ltd">
 <link rel="canonical" href="https://labshiftroster.com/app/">
@@ -407,9 +398,9 @@
     <strong>Your workforce data stays on your device.</strong>
     Lab Shift Roster processes your workbook locally in your browser and does not upload
     it to Optymum SS. No roster is stored on an external database, and the
-    workbook you download is created on your own computer. Limited information
-    about how the application is used may be sent to Google Analytics; staff, roster,
-    competency, leave and workbook data are never included.
+    workbook you download is created on your own computer. If you accept analytics
+    cookies, limited information about how the application is used is sent to Google
+    Analytics; staff, roster, competency, leave and workbook data are never included.
     </div>
   </div>
 </div>
@@ -668,6 +659,7 @@
        href="https://www.optymumss.com/compliments-complaints/">Feedback</a>
     <a href="https://labshiftroster.com/pricing">Plans and pricing</a>
     <a href="https://labshiftroster.com/">Product site</a>
+    <a href="#cookie-settings" data-cookie-settings>Cookie settings</a>
   </nav>
 
 
@@ -683,9 +675,12 @@
        Do not add sensitive personal details, and never add patient-identifiable
        information — Lab Shift Roster does not require any.</p>
     <h3>Usage analytics</h3>
-    <p>Limited information about how this application is used may be sent to Google
-       Analytics: page views, and three events recording that a draft roster was
-       generated, a staff rota was exported or a manager report was exported.
+    <p>Only if you accept analytics cookies, limited information about how this
+       application is used is sent to Google Analytics: page views, and three events
+       recording that a draft roster was generated, a staff rota was exported or a
+       manager report was exported. Nothing is loaded or set until you accept, and
+       you can withdraw at any time from <strong>Cookie settings</strong> in the
+       footer, which also deletes the analytics cookies.
        Google Analytics also records the ordinary technical details any website
        receives, such as approximate location, device type and browser.</p>
     <p>The events are names alone. <strong>No staff, roster, competency, leave,
@@ -1032,7 +1027,8 @@ async function boot() {
     $("runtime-source").textContent = runtimeIsLocal
       ? "This deployment serves the Python runtime from its own domain, so your "
         + "workbook is processed without contacting any other host. Google "
-        + "Analytics is loaded separately, and receives no workbook information."
+        + "Analytics is loaded separately, only if you accept it, and receives no "
+        + "workbook information."
       : "This deployment loads the Python runtime from a public CDN "
         + "(cdn.jsdelivr.net). It can be self-hosted instead so that everything "
         + "comes from one domain.";
