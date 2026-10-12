@@ -381,6 +381,28 @@
       .catch(function () {});
   })();
 </script>
+<script>
+  /* Carries an unconfirmed sales-agent referral (?ref=CODE) onto this page's links back to the product site,
+     so it survives the journey from here to signup and checkout. It lives only in the URL: no cookie and no
+     browser storage. Here the value only has to look like a code; the server checks it against its registry
+     and the customer confirms it on a form. */
+  (function () {
+    var m = /[?&]ref=([A-Za-z0-9_-]{3,32})(?:&|$)/.exec(location.search);
+    if (!m) return;
+    var ref = m[1].toUpperCase();
+    var PAGES = ["/", "/pricing", "/contact", "/signup", "/login", "/app/", "/app/user-guide", "/account/billing"];
+    document.querySelectorAll("a[href]").forEach(function (a) {
+      var h = a.getAttribute("href");
+      if (!h || h.charAt(0) === "#") return;
+      var u;
+      try { u = new URL(h, location.href); } catch (e) { return; }
+      if (u.origin !== "https://labshiftroster.com" && u.origin !== location.origin) return;
+      if (PAGES.indexOf(u.pathname) < 0 || u.searchParams.has("ref")) return;
+      u.searchParams.set("ref", ref);
+      a.setAttribute("href", h.charAt(0) === "/" ? u.pathname + u.search + u.hash : u.href);
+    });
+  })();
+</script>
 
 <div class="wrap">
 <main id="main">

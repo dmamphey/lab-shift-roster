@@ -99,6 +99,12 @@ only the workforce information the tool needs; do not add sensitive personal
 details, and never add patient-identifiable information — Lab Shift Roster does not
 require any.
 
+## Sales-agent referral links
+
+A link such as `/app/?ref=AG001` is carried onto this page's links back to the product site (pricing, sign-in, the user
+guide) by a few lines of script, using only the URL: no cookie and no browser storage. The server validates the code and
+the customer confirms it on a form; see the cloud repository's README, "Sales-agent referrals and attribution".
+
 ## Usage analytics
 
 The page loads one shared script (`/assets/analytics.js`, served by the labshiftroster.com Worker) that shows a consent
