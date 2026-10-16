@@ -113,7 +113,7 @@ STAFF = "staff"
 
 
 def write_workbook(scheduler: Scheduler, analysis: Analysis, target,
-                   audience: str = MANAGER) -> None:
+                   audience: str = MANAGER, paid: bool = False) -> None:
     """Write the exported workbook for a given audience.
 
     The **manager report** keeps the full analytical output.  The **staff rota** is
@@ -132,11 +132,11 @@ def write_workbook(scheduler: Scheduler, analysis: Analysis, target,
         _roster(workbook, scheduler, analysis, audience=STAFF)
         if scheduler.config.benches:
             _staff_sections(workbook, scheduler, analysis)
-        _staff_notes(workbook, scheduler)
+        _staff_notes(workbook, scheduler, paid)
         workbook.save(target)
         return
 
-    _instructions(workbook, scheduler, analysis)
+    _instructions(workbook, scheduler, analysis, paid)
     _roster(workbook, scheduler, analysis)
     _staff(workbook, scheduler, analysis)
     _competencies(workbook, scheduler, analysis)
@@ -149,12 +149,12 @@ def write_workbook(scheduler: Scheduler, analysis: Analysis, target,
     workbook.save(target)
 
 
-def _instructions(workbook, scheduler, analysis) -> None:
+def _instructions(workbook, scheduler, analysis, paid: bool = False) -> None:
+    from . import export_tagline
     sheet = workbook.create_sheet("Instructions")
     config = scheduler.config
     details = config.details
-    row = _title(sheet, "Lab Shift Roster — draft roster", 8,
-                 "A free, secure and intelligent workforce planning tool for diagnostic laboratories.")
+    row = _title(sheet, "Lab Shift Roster — draft roster", 8, export_tagline(paid))
     sheet.column_dimensions["A"].width = 34
     sheet.column_dimensions["B"].width = 64
 
@@ -207,7 +207,7 @@ def _instructions(workbook, scheduler, analysis) -> None:
         ("Competencies", "Who is competent in what, and the status of each record."),
         ("Shift Requirements", "The minimum staffing and competencies each shift "
                                "was required to meet."),
-        ("Bench Allocations", "Who was allocated to which section, day by day."),
+        ("Bench Allocations", "Who was allocated to which bench, day by day."),
         ("Issues", "Everything needing attention, grouped Critical, Review, Passed."),
         ("Hours Summary", "Contracted target against allocated hours per person."),
         ("Fairness Summary", "How nights, weekends and unpopular shifts are shared."),
@@ -426,13 +426,14 @@ def _roster(workbook, scheduler, analysis, audience: str = MANAGER) -> None:
         row += 1
         sheet.merge_cells(start_row=row, start_column=1,
                           end_row=row, end_column=last_col)
-        cell = sheet.cell(row=row, column=1, value="SECTION ALLOCATION")
+        cell = sheet.cell(row=row, column=1, value="BENCH ALLOCATION")
         cell.fill = HEADER_FILL
         cell.font = WHITE_BOLD
         cell.alignment = LEFT
         row += 1
         for bench in config.benches:
-            for column, value in ((1, bench.name), (2, bench.discipline),
+            for column, value in ((1, bench.name),
+                                  (2, bench.label or bench.discipline),
                                   (3, ""), (4, "")):
                 cell = sheet.cell(row=row, column=column, value=value)
                 cell.fill = BENCH_FILL
@@ -517,12 +518,12 @@ def _staff_sections(workbook, scheduler, analysis) -> None:
     whether the section was adequately covered, so the Required / Allocated /
     Status columns of the manager version are left out.
     """
-    sheet = workbook.create_sheet("Section Allocations")
-    row = _title(sheet, "Section allocations", 5,
+    sheet = workbook.create_sheet("Bench Allocations")
+    row = _title(sheet, "Bench allocations", 5,
                  "Where each person is working. Check with your manager if "
                  "anything looks wrong.")
     row = _headers(sheet, row,
-                   ["Date", "Day", "Shift", "Section", "Staff"],
+                   ["Date", "Day", "Shift", "Bench", "Staff"],
                    [12, 6, 16, 24, 52])
     config = scheduler.config
     for day in scheduler.days:
@@ -540,7 +541,7 @@ def _staff_sections(workbook, scheduler, analysis) -> None:
     _landscape(sheet)
 
 
-def _staff_notes(workbook, scheduler) -> None:
+def _staff_notes(workbook, scheduler, paid: bool = False) -> None:
     """A short cover note so a circulated rota explains itself."""
     sheet = workbook.create_sheet("Notes")
     config = scheduler.config
@@ -578,13 +579,13 @@ def _staff_notes(workbook, scheduler) -> None:
         row += 1
 
     row += 1
-    from . import PRODUCT_NAME, TAGLINE, VERSION_LABEL
+    from . import PRODUCT_NAME, VERSION_LABEL, export_tagline
     for line in [
         "A blank cell means you are not scheduled to work that day.",
         "Please raise any queries about your own rota with your line manager.",
         "This rota may be adjusted; check for a later version before relying on it.",
         "",
-        f"Produced with {PRODUCT_NAME} {VERSION_LABEL}. {TAGLINE}",
+        f"Produced with {PRODUCT_NAME} {VERSION_LABEL}. {export_tagline(paid)}",
     ]:
         cell = sheet.cell(row=row, column=1, value=line)
         cell.font = SMALL
@@ -631,7 +632,7 @@ def _competencies(workbook, scheduler, analysis) -> None:
                  "Only Competent, Trainer and Assessor count as coverage. "
                  "In Training and Supervised do not. Expired records never count.")
     row = _headers(sheet, row,
-                   ["Name", "Discipline", "Competency", "Status", "Counts as cover",
+                   ["Name", "Bench", "Competency", "Status", "Counts as cover",
                     "Achieved", "Review due", "Expires", "Trainer", "Assessor",
                     "Authoriser", "Notes"],
                    [24, 11, 26, 13, 15, 12, 12, 12, 9, 9, 11, 26])
@@ -647,7 +648,8 @@ def _competencies(workbook, scheduler, analysis) -> None:
         else:
             fills = {5: PASSED_FILL}
         row = _row(sheet, row, [
-            analysis.name_of(record.staff_id), record.discipline, record.name,
+            analysis.name_of(record.staff_id),
+            analysis.discipline_name(record.discipline), record.name,
             status, counts, record.date_achieved, record.review_date,
             record.expiry_date,
             "Yes" if record.can_train(as_of) else "",
@@ -690,11 +692,11 @@ def _requirements(workbook, scheduler) -> None:
 
 def _bench_allocations(workbook, scheduler, analysis) -> None:
     sheet = workbook.create_sheet("Bench Allocations")
-    row = _title(sheet, "Section allocation, day by day", 8,
-                 "One person is allocated to one section at a time, so coverage "
+    row = _title(sheet, "Bench allocation, day by day", 8,
+                 "One person is allocated to one bench at a time, so coverage "
                  "reflects who is actually there.")
     row = _headers(sheet, row,
-                   ["Date", "Day", "Shift", "Section", "Discipline", "Required",
+                   ["Date", "Day", "Shift", "Bench", "Discipline", "Required",
                     "Allocated", "Status", "Staff"],
                    [12, 6, 14, 22, 11, 10, 10, 14, 40])
     config = scheduler.config
@@ -715,7 +717,7 @@ def _bench_allocations(workbook, scheduler, analysis) -> None:
                     status, fill = "Not covered", CRITICAL_FILL
                 row = _row(sheet, row, [
                     day, WEEKDAY_SHORT[day.weekday()], shift.name, bench.name,
-                    bench.discipline, wanted, len(allocated), status,
+                    bench.label or bench.discipline, wanted, len(allocated), status,
                     ", ".join(analysis.name_of(sid) for sid in allocated) or "—",
                 ], fills={8: fill})
     _landscape(sheet)
@@ -738,25 +740,37 @@ def _issues(workbook, analysis) -> None:
     row += 2
 
     row = _headers(sheet, row,
-                   ["Severity", "Category", "Issue", "Date", "Shift", "Section",
+                   ["Severity", "Category", "Issue", "Date", "Shift", "Bench",
                     "Staff", "What to check"],
-                   [12, 22, 46, 14, 10, 18, 26, 46], height=30)
+                   [12, 22, 56, 22, 10, 18, 26, 46], height=30)
 
+    # One row per cause, worst first, with the findings behind a consolidated one listed
+    # beneath it so nothing is hidden by the summary.
     order = {CRITICAL: 0, REVIEW: 1, PASSED: 2}
-    for issue in sorted(analysis.issues,
-                        key=lambda i: (order.get(i.severity, 3), i.category,
-                                       i.day or date.min)):
+    for issue in sorted(analysis.summary_issues,
+                        key=lambda i: (order.get(i.severity, 3))):
         start_row = row
+        headline = (f"{issue.title}. {issue.explanation}"
+                    if issue.details else issue.explanation)
         row = _row(sheet, row, [
-            issue.severity, issue.category, issue.explanation,
-            issue.day, issue.shift_code, issue.bench_name,
+            issue.severity, issue.category, headline,
+            issue.span or issue.day, issue.shift_code, issue.bench_name,
             ", ".join(analysis.name_of(sid) for sid in issue.staff),
             issue.review_point,
         ], fills={1: SEVERITY_FILL.get(issue.severity, PASSED_FILL)},
            fonts={1: SEVERITY_FONT.get(issue.severity, SMALL)})
         for column in (3, 8):
             sheet.cell(row=start_row, column=column).alignment = WRAP_LEFT
-        sheet.row_dimensions[start_row].height = 30
+        sheet.cell(row=start_row, column=3).font = BOLD
+        sheet.row_dimensions[start_row].height = 44 if issue.details else 30
+        for item in issue.details:
+            row = _row(sheet, row, [
+                "", "", f"    •  {item['title']}. {item['explanation']}".rstrip(". ")
+                + ".", item.get("when") or "", item.get("shift") or "",
+                item.get("bench") or "", ", ".join(item.get("staff") or []), "",
+            ])
+            sheet.cell(row=row - 1, column=3).font = SMALL
+            sheet.cell(row=row - 1, column=3).alignment = WRAP_LEFT
     _landscape(sheet)
 
 
@@ -851,7 +865,7 @@ def _expiry(workbook, analysis) -> None:
                  f"Warning thresholds configured for this laboratory: "
                  f"{thresholds} days.")
     row = _headers(sheet, row,
-                   ["Name", "Discipline", "Competency", "Expires", "Days Away",
+                   ["Name", "Bench", "Competency", "Expires", "Days Away",
                     "State", "Action"],
                    [24, 11, 28, 13, 11, 18, 40])
     if not analysis.expiring:
@@ -862,7 +876,8 @@ def _expiry(workbook, analysis) -> None:
                        key=lambda i: (i["days"] if i["days"] is not None else 9999)):
         expired = item["state"] == "Expired"
         row = _row(sheet, row, [
-            item["name"], item["discipline"], item["name_of_competency"],
+            item["name"], analysis.discipline_name(item["discipline"]),
+            item["name_of_competency"],
             item["expiry"], item["days"], item["state"],
             "Reassess before this person is counted as cover" if expired
             else "Schedule reassessment",

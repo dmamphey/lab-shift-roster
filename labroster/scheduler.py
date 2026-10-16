@@ -213,6 +213,20 @@ class Scheduler:
             return 0.0
         return round(person.target_period_hours - person.total_accounted_hours, 4)
 
+    def hours_owed_fraction(self, staff_id: str) -> float:
+        """What share of their own target somebody is still owed.  Higher = more owed.
+
+        Ranking people by hours owed in absolute terms always puts a full-time
+        colleague ahead of a part-time one, because a bigger target means a bigger
+        gap. The part-timers then run short of work and the full-timers over. The
+        share of each person's OWN target is what makes the two comparable, so a
+        0.6 FTE and a 1.0 FTE who are each 40% short are equally owed work.
+        """
+        person = self.by_id.get(staff_id)
+        if not person or not person.target_period_hours:
+            return 0.0
+        return round(self.hours_deficit(staff_id) / person.target_period_hours, 4)
+
     def hours_in_week(self, staff_id: str, day: date) -> float:
         """Worked hours in the Monday-to-Sunday week containing ``day``."""
         monday = day - timedelta(days=day.weekday())
@@ -437,7 +451,7 @@ class Scheduler:
                 # that it may cost some day-service cover.
                 return (
                     self.count_nights(staff_id),
-                    -self.hours_deficit(staff_id),
+                    -self.hours_owed_fraction(staff_id),
                     self.count_shift_code(staff_id, shift.code),
                     self.consecutive_run(staff_id, day),
                     self.rng.random(),
@@ -453,7 +467,7 @@ class Scheduler:
                 # costs nothing but itself, so sharing them out is close to free.
                 return (
                     self.count_weekend_days(staff_id),  # least burdened first
-                    -self.hours_deficit(staff_id),      # then most owed work
+                    -self.hours_owed_fraction(staff_id),      # then most owed work
                     self.count_shift_code(staff_id, shift.code),
                     self.consecutive_run(staff_id, day),
                     self.rng.random(),
@@ -462,7 +476,7 @@ class Scheduler:
             # Nights fall back to hours owed only when a manager has turned
             # sharing off; the branch above is the default.
             return (
-                -self.hours_deficit(staff_id),      # most below target first
+                -self.hours_owed_fraction(staff_id),      # most below target first
                 self.count_nights(staff_id) if shift.is_night else 0,
                 self.count_shift_code(staff_id, shift.code),
                 self.consecutive_run(staff_id, day),
@@ -679,6 +693,7 @@ class Scheduler:
     def build(self) -> None:
         self.place_night_blocks()
         self.place_remaining_shifts()
+        self.balance()
         self.allocate_benches()
         self.record_rest_conflicts()
 
@@ -738,8 +753,54 @@ class Scheduler:
             for shift in shifts:
                 self._fill_shift(day, shift)
 
+    def _seed_benches(self, day: date, shift: ShiftType) -> None:
+        """Choose the people who will stand at this shift's benches, all together.
+
+        Meeting the shift's needs one at a time, rarest first, lets each pick use up
+        somebody a later bench depended on: the last haemoglobinopathy-capable
+        scientist is chosen for something else and the bench is left with nobody.
+        Matching every bench to a distinct competent person at once finds a full
+        assignment whenever the people available allow one. Those chosen are placed
+        first; the usual needs (registration, seniority and so on) are then met around
+        them, usually by the same people.
+        """
+        if max(1, self.rules.max_simultaneous_bench_assignments) != 1:
+            return
+        slots: list[Bench] = []
+        for bench in self.benches_for(day, shift):
+            slots.extend([bench] * max(0, bench.required_on(
+                day, self.rules.weekend_days)))
+        if not slots:
+            return
+        present = self.assigned_to(day, shift)
+        free = [person.staff_id for person in self.candidates(day, shift)]
+        people = present + [sid for sid in free if sid not in present]
+        options = [[sid for sid in people
+                    if self._competent(sid, bench.discipline, day)
+                    and (not bench.requires_authoriser
+                         or self._authoriser(sid, bench.discipline, day))]
+                   for bench in slots]
+        taken_by: dict[str, int] = {}
+
+        def assign(slot: int, seen: set[str]) -> bool:
+            for staff_id in options[slot]:
+                if staff_id in seen:
+                    continue
+                seen.add(staff_id)
+                if staff_id not in taken_by or assign(taken_by[staff_id], seen):
+                    taken_by[staff_id] = slot
+                    return True
+            return False
+
+        for slot in range(len(slots)):
+            assign(slot, set())
+        for staff_id in sorted(taken_by, key=lambda sid: taken_by[sid]):
+            if staff_id not in present:
+                self.place(day, self.by_id[staff_id], shift, "bench cover")
+
     def _fill_shift(self, day: date, shift: ShiftType) -> None:
         requirement = self.config.requirement_for(shift, day)
+        self._seed_benches(day, shift)
 
         # 1. Satisfy specific conditions first, rarest capability first.
         guard = 0
@@ -756,6 +817,12 @@ class Scheduler:
             scored.sort(key=lambda item: item[0])
             _, need, pool = scored[0]
             if not pool:
+                # Nobody free can meet it. Before calling it a gap, see whether somebody
+                # already working another shift today could do it without leaving that
+                # shift worse off. The shifts are filled one at a time, so an early
+                # choice can have used up the one person a later shift needs.
+                if self._repair(day, shift, requirement, need):
+                    continue
                 self.shortfalls.append(Shortfall(
                     day=day, shift_code=shift.code,
                     kind=need["kind"],
@@ -780,6 +847,195 @@ class Scheduler:
                     needed=requirement.min_staff, found=found))
                 break
             self.place(day, person, shift, "staffing level")
+
+    # ------------------------------------------------------------------
+    # balancing the finished roster
+    # ------------------------------------------------------------------
+
+    def _share_of_target(self, person: Staff) -> float:
+        return person.total_accounted_hours / person.target_period_hours
+
+    def _unmet(self, day: date, shift: ShiftType) -> int:
+        """How far a shift is from meeting what it needs: 0 means fully met."""
+        requirement = self.config.requirement_for(shift, day)
+        gap = max(0, requirement.min_staff - len(self.assigned_to(day, shift)))
+        gap += sum(need["missing"]
+                   for need in self.outstanding_needs(day, shift, requirement))
+        if requirement.max_trainees:
+            trainees = sum(1 for sid in self.assigned_to(day, shift)
+                           if self.by_id[sid].trainee)
+            gap += max(0, trainees - requirement.max_trainees)
+        return gap
+
+    def _swap(self, day: date, giver: Staff, taker: Staff,
+              improves) -> bool:
+        """Hand ``giver``'s shift on ``day`` to ``taker`` if that is a strict improvement.
+
+        Only a shift the scheduler placed (never a manager's, never a night) is moved, and
+        only if ``taker`` is free to work it under every rule, the shift is no worse met
+        afterwards, and ``improves`` agrees the move helps. Otherwise nothing changes.
+        """
+        key = (day, giver.staff_id)
+        assignment = self.assignments.get(key)
+        if (assignment is None or key in self.manual_keys
+                or (day, taker.staff_id) in self.assignments):
+            return False
+        shift = self.shift_by_code.get(assignment.shift_code)
+        if shift is None or shift.is_night or not improves(shift):
+            return False
+        before = self._unmet(day, shift)
+        self.unplace(day, giver.staff_id)
+        if self.can_assign(taker, day, shift):
+            requirement = self.config.requirement_for(shift, day)
+            if not (taker.trainee and self._trainee_cap_reached(day, shift, requirement)):
+                self.place(day, taker, shift, "balance")
+                if self._unmet(day, shift) <= before:
+                    return True
+                self.unplace(day, taker.staff_id)
+        self.place(day, giver, shift, assignment.reason)
+        return False
+
+    def balance(self) -> None:
+        """Even out weekends, then hours, across the finished roster.
+
+        Filling each day to what it needs is not the same as sharing the work fairly: the
+        scheduler can only choose among the people who suit the day's requirements, so
+        some end well above their contracted hours and others well below. This moves a
+        shift at a time from whoever is furthest above their share to whoever is furthest
+        below, accepting a move only if it breaks no rule, leaves cover no worse and makes
+        the two closer. Weekends are shared first; hours then move weekdays only, so the
+        weekend sharing is not undone.
+        """
+        self._balance_weekends()
+        self._balance_hours()
+
+    def _balance_weekends(self) -> None:
+        eligible = [person for person in self.staff if person.weekends_ok]
+        weekend_days = [day for day in self.days if self.is_weekend(day)]
+        if len(eligible) < 2 or not weekend_days:
+            return
+        for _ in range(200):
+            ranked = sorted(eligible, key=lambda person: (
+                self.count_weekend_days(person.staff_id), person.staff_id))
+            moved = False
+            for giver in reversed(ranked[-4:]):
+                for taker in ranked[:4]:
+                    if (self.count_weekend_days(giver.staff_id)
+                            - self.count_weekend_days(taker.staff_id)) < 2:
+                        continue
+                    for day in weekend_days:
+                        if self._swap(day, giver, taker, lambda shift: True):
+                            moved = True
+                            break
+                    if moved:
+                        break
+                if moved:
+                    break
+            if not moved:
+                return
+
+    def _balance_hours(self) -> None:
+        people = [person for person in self.staff if person.target_period_hours]
+        if len(people) < 2:
+            return
+        weekdays = [day for day in self.days if not self.is_weekend(day)]
+        for _ in range(400):
+            ranked = sorted(people, key=lambda person: (
+                self._share_of_target(person), person.staff_id))
+            if (self._share_of_target(ranked[-1])
+                    - self._share_of_target(ranked[0])) <= 0.04:
+                return
+            moved = False
+            for giver in reversed(ranked[-5:]):
+                for taker in ranked[:5]:
+                    if giver is taker:
+                        continue
+                    gap = (self._share_of_target(giver)
+                           - self._share_of_target(taker))
+                    if gap <= 0.04:
+                        continue
+
+                    def improves(shift, giver=giver, taker=taker, gap=gap):
+                        after = abs(
+                            (giver.total_accounted_hours - shift.hours)
+                            / giver.target_period_hours
+                            - (taker.total_accounted_hours + shift.hours)
+                            / taker.target_period_hours)
+                        return after < gap - 0.01
+
+                    for day in weekdays:
+                        if self._swap(day, giver, taker, improves):
+                            moved = True
+                            break
+                    if moved:
+                        break
+                if moved:
+                    break
+            if not moved:
+                return
+
+    # ------------------------------------------------------------------
+    # repairing a day
+    # ------------------------------------------------------------------
+
+    def _repair(self, day: date, shift: ShiftType,
+                requirement: ShiftRequirement, need: dict) -> bool:
+        """Meet ``need`` on ``shift`` by moving somebody from another shift today.
+
+        The person is moved only if the shift they leave still meets everything it did,
+        either without them or because somebody who is free can take their place.
+        Nothing that a manager placed by hand is ever moved, nor anybody on nights, and
+        if the move cannot be made good everything is put back exactly as it was.
+        """
+        wanted = self._need_predicate(need, day)
+        for other in self._applicable_shifts(day):
+            if other.code == shift.code or other.is_night:
+                continue
+            for staff_id in sorted(self.assigned_to(day, other)):
+                if (day, staff_id) in self.manual_keys:
+                    continue
+                person = self.by_id[staff_id]
+                if not wanted(person):
+                    continue
+                if person.trainee and self._trainee_cap_reached(day, shift, requirement):
+                    continue
+                previous = self.unplace(day, staff_id)
+                if previous is None:
+                    continue
+                if not self.can_assign(person, day, shift):
+                    self.place(day, person, other, previous.reason)
+                    continue
+                self.place(day, person, shift, f"moved: {need['label']}")
+                backfilled = self._restore(day, other)
+                if backfilled is not None:
+                    return True
+                self.unplace(day, staff_id)               # could not make it good
+                self.place(day, person, other, previous.reason)
+        return False
+
+    def _restore(self, day: date, shift: ShiftType) -> list[str] | None:
+        """Bring a shift back to meeting its requirement using people who are free.
+
+        Returns who was added (possibly nobody), or None, having undone its own
+        additions, if the shift cannot be made whole.
+        """
+        requirement = self.config.requirement_for(shift, day)
+        added: list[str] = []
+        for _ in range(12):
+            needs = self.outstanding_needs(day, shift, requirement)
+            short = len(self.assigned_to(day, shift)) < requirement.min_staff
+            if not needs and not short:
+                return added
+            predicate = self._need_predicate(needs[0], day) if needs else None
+            person = self._pick(self.candidates(day, shift, predicate), day, shift,
+                                requirement)
+            if person is None:
+                break
+            self.place(day, person, shift, "backfill")
+            added.append(person.staff_id)
+        for staff_id in added:
+            self.unplace(day, staff_id)
+        return None
 
     def _pick(self, pool: list[Staff], day: date, shift: ShiftType,
               requirement: ShiftRequirement) -> Staff | None:
@@ -820,6 +1076,11 @@ class Scheduler:
                     return sum(1 for sid in on_duty
                                if self._competent(sid, bench.discipline, day))
 
+                if limit == 1:
+                    self._allocate_exactly(day, shift, benches, on_duty,
+                                           rotation_load, scarcity)
+                    continue
+
                 for bench in sorted(benches, key=scarcity):
                     wanted = bench.required_on(day, self.rules.weekend_days)
                     if not wanted:
@@ -850,6 +1111,69 @@ class Scheduler:
                                     f"independently competent staff allocated"),
                             needed=wanted, found=len(picked),
                             discipline=bench.discipline, bench_name=bench.name))
+
+    def _allocate_exactly(self, day: date, shift: ShiftType, benches: list[Bench],
+                          on_duty: list[str], rotation_load: Counter,
+                          scarcity) -> None:
+        """Give each bench its own person, finding a complete assignment if one exists.
+
+        Handing benches out one at a time can strand a bench even though a full
+        assignment exists: the first bench takes the only person the second could
+        have had. Matching them properly (the same augmenting-path method used to
+        check that a shift CAN be covered) means the roster never reports a bench
+        uncovered when the people on duty could have covered it. Among the complete
+        assignments, those who have worked the fewest benches come first, which is
+        what spreads section work around.
+        """
+        slots: list[Bench] = []
+        for bench in sorted(benches, key=scarcity):
+            wanted = bench.required_on(day, self.rules.weekend_days)
+            slots.extend([bench] * max(0, wanted))
+        if not slots:
+            return
+
+        def eligible_for(bench: Bench) -> list[str]:
+            chosen = [sid for sid in on_duty
+                      if self._competent(sid, bench.discipline, day)
+                      and (not bench.requires_authoriser
+                           or self._authoriser(sid, bench.discipline, day))]
+            chosen.sort(key=lambda sid: (rotation_load[sid], sid))
+            return chosen
+
+        options = [eligible_for(bench) for bench in slots]
+        taken_by: dict[str, int] = {}
+
+        def assign(slot: int, seen: set[str]) -> bool:
+            for staff_id in options[slot]:
+                if staff_id in seen:
+                    continue
+                seen.add(staff_id)
+                if staff_id not in taken_by or assign(taken_by[staff_id], seen):
+                    taken_by[staff_id] = slot
+                    return True
+            return False
+
+        for slot in range(len(slots)):
+            assign(slot, set())
+
+        placed: Counter[str] = Counter()
+        for staff_id, slot in sorted(taken_by.items(), key=lambda item: item[1]):
+            bench = slots[slot]
+            rotation_load[staff_id] += 1
+            placed[bench.name] += 1
+            self.bench_allocations.append(BenchAllocation(
+                day=day, bench_name=bench.name, discipline=bench.discipline,
+                shift_code=shift.code, staff_id=staff_id))
+
+        for bench in {slot.name: slot for slot in slots}.values():
+            wanted = bench.required_on(day, self.rules.weekend_days)
+            if placed[bench.name] < wanted:
+                self.shortfalls.append(Shortfall(
+                    day=day, shift_code=shift.code, kind="bench",
+                    detail=(f"{bench.name}: {placed[bench.name]} of {wanted} "
+                            f"independently competent staff allocated"),
+                    needed=wanted, found=placed[bench.name],
+                    discipline=bench.discipline, bench_name=bench.name))
 
     def bench_staff(self, day: date, bench_name: str,
                     shift_code: str | None = None) -> list[str]:

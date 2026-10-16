@@ -401,6 +401,7 @@ class Bench:
     end: time | None = None
     requires_authoriser: bool = False
     target_rotation_days: int = 0         # 0 = no rotation expectation
+    label: str = ""                       # the discipline as written (Grouping), for display
 
     def applies_on(self, day: date, weekend_days: set[int]) -> bool:
         return _applies_to_day(self.days, day, weekend_days)

@@ -200,25 +200,30 @@ def test_issue_payload_carries_the_consolidated_fields():
 
 # --- discipline terminology -------------------------------------------------
 
-def test_disciplines_are_expressed_as_short_codes():
-    """BT, HAEM, COAG and MORPH are the everyday shorthand in a laboratory.
+def test_benches_are_expressed_by_their_short_name():
+    """GRP, FBC, COAG and MORPH are the everyday shorthand in a laboratory.
 
-    The requirement line must use the code, not an expanded competency name, so the
-    workbook and the interface stay in the same terms.
+    The requirement line must use the short bench name, not the discipline's full name
+    or an expanded competency name, so the workbook and the interface stay in the same
+    terms. (The consolidated list shows only a headline; the findings are checked in
+    full.)
     """
     result = api.generate(api.demo_workbook_bytes())
-    text = " ".join(f"{issue['title']} {issue['explanation']} {issue['required']}"
-                    for issue in result["issues"])
-    for expanded in ("Blood film morphology scientist", "Haematology scientist",
-                     "Coagulation scientist", "Blood Transfusion scientist"):
+    findings = result["_analysis"].issues
+    text = " ".join(f"{issue.title} {issue.explanation} {issue.required}"
+                    for issue in findings)
+    for expanded in ("Blood film morphology scientist", "Morphology scientist",
+                     "FULL BLOOD COUNT scientist", "GROUPING scientist",
+                     "HAEMOGLOBINOPATHY scientist"):
         assert expanded not in text, f"expanded name used instead of a code: {expanded}"
-    assert "MORPH scientist" in text or "HAEM scientist" in text
+    assert "MORPH scientist" in text or "FBC scientist" in text
 
 
-def test_resilience_reports_disciplines_by_code():
+def test_resilience_reports_benches_by_their_short_name():
     result = api.generate(api.demo_workbook_bytes())
-    disciplines = {item["discipline"] for item in result["resilience"]}
-    assert disciplines == {"BT", "HAEM", "COAG", "MORPH"}
+    benches = {item["discipline"] for item in result["resilience"]}
+    assert benches == {"GRP", "XMTCH", "SPECS", "FBC", "COAG", "MORPH", "FLOW",
+                       "HB'THY"}
 
 
 def test_section_names_still_appear_in_the_issue_title():

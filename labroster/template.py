@@ -24,7 +24,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from . import SCHEMA_VERSION
+from . import SCHEMA_VERSION, TAGLINE
 from .models import derive_initials, CREDIT_METHODS, CompetencyStatus, WEEKDAY_SHORT
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
@@ -38,7 +38,8 @@ LEFT = Alignment(horizontal="left", vertical="center")
 
 MANAGER_STEPS = [
     "Complete the Staff sheet: one row per member of staff.",
-    "Complete the Competencies sheet: one row per person per discipline.",
+    "Complete the Competencies sheet: one row per person per bench (a bench is "
+    "also called a discipline).",
     "Complete the Shifts sheet: the shifts your laboratory runs, with times. "
     "Set Active to No for any shift you do not run.",
     "Add leave and availability: the Leave sheet, and Week Patterns if anyone "
@@ -66,23 +67,30 @@ INSTRUCTION_NOTES = [
      "Leave them all blank if somebody is fully flexible.", False),
     ("Staff — Senior, Shift Coordinator and Registered are recorded separately "
      "from Band, because they are different things. A Band 7 is not "
-     "automatically competent in every discipline.", False),
+     "automatically competent in every bench.", False),
     ("Competencies — only Competent, Trainer and Assessor count as cover. "
      "In Training and Supervised do not, because those staff need somebody with "
      "them. Expired competencies never count.", False),
-    ("Shifts — the five shifts below are a starting point, not a prescription. "
-     "Set Active to No for any your laboratory does not run, and add a row for "
-     "any it does. An inactive shift is never rostered, and requirements or "
-     "benches that mention it are ignored while it is off — so you can switch "
-     "one back on later without retyping anything.", False),
+    ("Bench or Discipline — these are two names for the same thing: a section of "
+     "the laboratory, such as Grouping or Coagulation. On the Competencies and "
+     "Shift Requirements sheets write it either way: as the short Bench name "
+     "(GRP) or as the full Discipline name (Grouping). Lab Shift Roster treats "
+     "them as the same.", False),
+    ("Shifts — one row per shift your laboratory runs, with its times. Set Active "
+     "to No for any shift you do not run for now: an inactive shift is never "
+     "rostered, and requirements or benches that mention it are ignored while it "
+     "is off, so you can switch one back on later without retyping anything.",
+     False),
     ("Staff — Initials is optional. Leave it blank and the roster works them out "
      "from the name, keeping them unique. Fill it in if your laboratory already "
      "uses its own. These are the initials that appear in the section "
      "allocation rows.", False),
-    ("Shift Requirements — Required Competencies is written as discipline and "
-     "number, for example: BT:1, HAEM:2, COAG:1", False),
-    ("Benches — each bench needs its own person. One member of staff is not "
-     "counted as covering two benches at the same time.", False),
+    ("Shift Requirements — Required Competencies is written as bench (or "
+     "discipline) and number, for example: GRP:1, FBC:2, COAG:1", False),
+    ("Benches — Bench is the short name used on the rota (for example GRP) and "
+     "Discipline is the full name of the same section (Grouping): interchangeable "
+     "terms. Each bench needs its own person. One member of staff is not counted "
+     "as covering two benches at the same time.", False),
     ("Rules — these are your laboratory's own operating rules, including the "
      "rest interval. They are settings for planning, not a determination of "
      "legal or regulatory compliance.", False),
@@ -218,11 +226,11 @@ STAFF_WIDTHS = [10, 20, 9, 20, 7, 11, 8, 12, 8, 13, 6, 16, 11,
                 10, 20, 20]
 
 COMPETENCY_HEADERS = [
-    "Staff ID", "Name", "Discipline", "Competency", "Status", "Date Achieved",
+    "Staff ID", "Name", "Bench or Discipline", "Competency", "Status", "Date Achieved",
     "Review Date", "Expiry Date", "Trainer", "Assessor", "Result Authoriser",
     "Notes",
 ]
-COMPETENCY_WIDTHS = [10, 20, 11, 26, 13, 13, 13, 13, 9, 9, 14, 22]
+COMPETENCY_WIDTHS = [10, 20, 14, 26, 13, 13, 13, 13, 9, 9, 14, 22]
 
 SHIFT_HEADERS = ["Code", "Name", "Start", "End", "Days", "Active", "Night Shift",
                  "Colour", "Font Colour", "Preview"]
@@ -238,7 +246,7 @@ REQUIREMENT_WIDTHS = [10, 12, 10, 12, 10, 9, 12, 13, 11, 11, 24, 22, 20]
 BENCH_HEADERS = ["Bench", "Discipline", "Days", "Min Staff",
                  "Min Staff Weekend", "Shift Codes", "Requires Authoriser",
                  "Rotation Interval (days)"]
-BENCH_WIDTHS = [24, 12, 12, 10, 16, 14, 16, 18]
+BENCH_WIDTHS = [12, 24, 12, 10, 16, 14, 16, 18]
 
 LEAVE_HEADERS = ["Staff ID", "Name", "From", "To", "Type", "Credited Hours",
                  "Reason"]
@@ -252,9 +260,8 @@ LEAVE_TYPE_HEADERS = ["Code", "Label", "Colour", "Font Colour",
                       "Credited Hours Method", "Fixed Hours Per Day"]
 LEAVE_TYPE_WIDTHS = [10, 30, 10, 11, 22, 22, 17]
 
-#: The seeded shifts. Every laboratory works a different pattern, so these are a
-#: starting point to switch off or edit, not a prescription — which is what the
-#: Active column is for.
+#: The example laboratories' shifts. The BLANK workbook does not carry them: every laboratory
+#: works a different pattern, so a blank workbook starts with none.
 DEFAULT_SHIFTS = [
     ("E", "Early", "07:00", "15:00", "Weekday", "Y", "N", "FFF2CC", "000000"),
     ("C", "Core", "09:00", "17:30", "Weekday", "Y", "N", "D9E1F2", "000000"),
@@ -263,7 +270,9 @@ DEFAULT_SHIFTS = [
     ("W", "Weekend Day", "09:00", "17:30", "Weekend", "Y", "N", "00B050", "FFFFFF"),
 ]
 
-# "Counts Towards Contracted Hours" is what stops the roster handing somebody
+# The example laboratories' absence types. (The blank workbook leaves the Leave Types sheet
+# empty; the standard five are always understood even when it is.) "Counts Towards Contracted
+# Hours" is what stops the roster handing somebody
 # extra shifts to make up hours they were away for.  Every standard absence
 # credits hours by default; change it if your organisation works differently.
 DEFAULT_LEAVE_TYPES = [
@@ -277,29 +286,33 @@ DEFAULT_LEAVE_TYPES = [
      "Working pattern", ""),
 ]
 
-#: Shift Codes says which shifts a section must be staffed during.  Transfusion
-#: and haematology run whenever the laboratory is open; coagulation and
-#: morphology only during the main day service.
-DEFAULT_BENCHES = [
-    ("Blood Transfusion", "BT", "All", 1, 1, "C, L, W", "Y", 42),
-    ("Haematology", "HAEM", "All", 1, 1, "C, L, W", "N", 42),
-    ("Coagulation", "COAG", "Weekday", 1, 0, "C", "N", 56),
-    ("Morphology", "MORPH", "Weekday", 1, 0, "C", "N", 56),
+#: The eight benches of the example laboratories. On this sheet Bench is the short name used on the
+#: rota and Discipline is the full name of the same section: interchangeable terms, shown side by
+#: side here and nowhere else. Shift Codes says which shifts a section must be staffed during:
+#: transfusion (GRP, XMTCH) and full blood count run whenever the laboratory is open, and the
+#: specialist benches only during the main day service.
+EXAMPLE_BENCHES = [
+    ("GRP", "Grouping", "All", 1, 1, "C, L, W", "N", 42),
+    ("XMTCH", "Crossmatch", "All", 1, 1, "C, L, W", "Y", 42),
+    ("SPECS", "Specials Coagulation", "Weekday", 1, 0, "C", "N", 56),
+    ("FBC", "Full Blood Count", "All", 1, 1, "C, L, W", "N", 42),
+    ("COAG", "Coagulation", "Weekday", 1, 0, "C", "N", 56),
+    ("MORPH", "Morphology", "Weekday", 1, 0, "C", "N", 56),
+    ("FLOW", "Flow Cytometry", "Weekday", 1, 0, "C", "N", 56),
+    ("HB'THY", "Haemoglobinopathy", "Weekday", 1, 0, "C", "N", 56),
 ]
+DEFAULT_BENCHES = EXAMPLE_BENCHES
 
-# Sized so the example workforce can genuinely deliver it, while still leaving
-# the deliberate morphology gap that demonstrates a single point of failure.
+# The challenging example's requirements. Deliberately more than this workforce can fully deliver,
+# so every kind of gap is reported; the balanced example has its own, sized to be met.
 DEFAULT_REQUIREMENTS = [
     ("E", "Weekday", 2, 1, 0, 0, 0, 0, 0, 1, "", "", ""),
-    ("C", "Weekday", 5, 3, 1, 6, 1, 1, 0, 2,
-     "BT:1, HAEM:1, COAG:1, MORPH:1", "BT:1", "Main day service"),
-    ("L", "Weekday", 2, 1, 1, 0, 0, 0, 0, 1, "BT:1", "BT:1", ""),
-    ("N", "All", 1, 1, 1, 0, 0, 0, 0, 0, "BT:1, HAEM:1", "BT:1",
+    ("C", "Weekday", 8, 3, 1, 6, 1, 1, 0, 2,
+     "GRP:1, XMTCH:1, FBC:1, COAG:1, MORPH:1", "XMTCH:1", "Main day service"),
+    ("L", "Weekday", 3, 1, 1, 0, 0, 0, 0, 1, "XMTCH:1", "XMTCH:1", ""),
+    ("N", "All", 1, 1, 1, 0, 0, 0, 0, 0, "XMTCH:1, FBC:1", "XMTCH:1",
      "Lone working out of hours"),
-    # A two-person weekend, with the senior on duty also coordinating. Three was
-    # about four per cent more work than this workforce is contracted for, which
-    # pushed most people slightly over their target hours.
-    ("W", "Weekend", 2, 2, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+    ("W", "Weekend", 3, 2, 1, 0, 0, 0, 0, 1, "XMTCH:1, FBC:1", "XMTCH:1", ""),
 ]
 
 RULES_ROWS = [
@@ -338,7 +351,7 @@ def _instructions_sheet(workbook, is_demo: bool,
 
     sheet["A1"] = "Lab Shift Roster"
     sheet["A1"].font = Font(bold=True, size=18, color="1F3864")
-    sheet["A2"] = "A free, secure and intelligent workforce planning tool for diagnostic laboratories."
+    sheet["A2"] = TAGLINE
     sheet["A2"].font = Font(size=11, italic=True, color="5B6470")
 
     row = 4
@@ -356,10 +369,12 @@ def _instructions_sheet(workbook, is_demo: bool,
                   "fictional.")
         ink, paper = "9C0006", "FBE6E8"
     else:
-        banner = ("BLANK WORKBOOK — the Staff, Competencies, Leave and Week "
-                  "Patterns sheets are empty and ready for your own information. "
-                  "The Shifts, Requirements and Benches sheets contain a common "
-                  "starting configuration for you to adjust.")
+        banner = ("BLANK WORKBOOK — every sheet is empty and ready for your own "
+                  "information: Staff, Competencies, Week Patterns, Leave, Shifts, "
+                  "Shift Requirements, Benches and Leave Types. Only the Roster "
+                  "Details dates and the usual Rules settings are filled in, so "
+                  "check them. To see a completed workbook, download an example "
+                  "laboratory.")
         ink, paper = "1D6B3F", "E3F4E9"
 
     # One place applies the styling and advances the row, so no branch can forget
@@ -399,8 +414,8 @@ def _details_sheet(workbook, period_start: date, period_end: date,
     sheet, header_row = _sheet(workbook, "Roster Details", ["Detail", "Value"],
                                widths=[30, 40], freeze=False)
     rows = [
-        ("Rota name", ("Balanced Example Rota" if balanced
-                       else "Laboratory Staff Rota")),
+        ("Rota name", (("Balanced Example Rota" if balanced
+                        else "Laboratory Staff Rota") if is_demo else "")),
         ("Organisation", "Example NHS Trust" if is_demo else ""),
         ("Department", ("Blood Sciences (balanced example)" if balanced
                         else "Blood Sciences") if is_demo else ""),
@@ -430,14 +445,24 @@ def _rules_sheet(workbook) -> None:
             Alignment(wrap_text=True, vertical="center")
 
 
-def _configuration_sheets(workbook, requirements=None) -> None:
-    """Shifts, requirements, benches and leave types: the same in both workbooks."""
+def _configuration_sheets(workbook, requirements=None, benches=None,
+                          populate: bool = True) -> None:
+    """Shifts, requirements, benches and leave types.
+
+    With ``populate`` False (the blank workbook) the four sheets keep their headings,
+    notes and dropdowns and nothing else.
+    """
     sheet, header_row = _sheet(
         workbook, "Shifts", SHIFT_HEADERS, SHIFT_WIDTHS,
-        note="Colour and Font Colour are hex codes. The cells show the actual "
+        note="One row per shift your laboratory runs. Colour and Font Colour are hex "
+             "codes (for example FFF2CC); the cells show the actual colour, and "
+             "Preview shows how the shift will look on the roster."
+        if not populate else
+             "Colour and Font Colour are hex codes. The cells show the actual "
              "colour, and Preview shows how the shift will look on the roster.")
-    _write_rows(sheet, header_row, DEFAULT_SHIFTS)
-    _colour_previews(sheet, header_row, len(DEFAULT_SHIFTS))
+    if populate:
+        _write_rows(sheet, header_row, DEFAULT_SHIFTS)
+        _colour_previews(sheet, header_row, len(DEFAULT_SHIFTS))
     # Active (6) and Night Shift (7). Active is offered on every row down the
     # sheet, not just the seeded ones, so a shift added later can be switched
     # off the same way.
@@ -448,8 +473,9 @@ def _configuration_sheets(workbook, requirements=None) -> None:
     sheet, header_row = _sheet(
         workbook, "Shift Requirements", REQUIREMENT_HEADERS, REQUIREMENT_WIDTHS,
         note="Required Competencies and Required Authorisers are written as "
-             "discipline and number, for example:  BT:1, HAEM:2, COAG:1")
-    _write_rows(sheet, header_row, requirements or DEFAULT_REQUIREMENTS)
+             "bench (or discipline) and number, for example:  GRP:1, FBC:2, COAG:1")
+    if populate:
+        _write_rows(sheet, header_row, requirements or DEFAULT_REQUIREMENTS)
     _list_validation(sheet, header_row, 2,
                      ["All", "Weekday", "Weekend", "Monday", "Tuesday",
                       "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -457,11 +483,14 @@ def _configuration_sheets(workbook, requirements=None) -> None:
 
     sheet, header_row = _sheet(
         workbook, "Benches", BENCH_HEADERS, BENCH_WIDTHS,
-        note="Each bench needs its own person. One member of staff is never "
-             "counted as covering two benches at the same time. Shift Codes says "
-             "which shifts the section must be staffed during — leave it blank to "
+        note="Bench and Discipline are interchangeable terms for a section of the "
+             "laboratory: Bench is the short name used on the rota (GRP), Discipline "
+             "its full name (Grouping). Each bench needs its own person; one member "
+             "of staff is never counted on two benches at once. Shift Codes says "
+             "which shifts the section must be staffed during: leave it blank to "
              "mean every shift except nights.")
-    _write_rows(sheet, header_row, DEFAULT_BENCHES)
+    if populate:
+        _write_rows(sheet, header_row, benches or DEFAULT_BENCHES)
     _yes_no(sheet, header_row, [7], last_row=60)
     _list_validation(sheet, header_row, 3, ["All", "Weekday", "Weekend"],
                      last_row=60)
@@ -471,9 +500,11 @@ def _configuration_sheets(workbook, requirements=None) -> None:
         note="'Counts Towards Contracted Hours' stops Lab Shift Roster giving somebody "
              "extra shifts to make up hours they were away for. Credited hours "
              "come from that person's own working pattern unless you set a fixed "
-             "figure.")
-    _write_rows(sheet, header_row, DEFAULT_LEAVE_TYPES)
-    _leave_colour_previews(sheet, header_row, len(DEFAULT_LEAVE_TYPES))
+             "figure. Leave this sheet empty to use the standard absence types "
+             "(A/L, S/L, C/L, M/L, S/D), or list your own.")
+    if populate:
+        _write_rows(sheet, header_row, DEFAULT_LEAVE_TYPES)
+        _leave_colour_previews(sheet, header_row, len(DEFAULT_LEAVE_TYPES))
     _yes_no(sheet, header_row, [5], last_row=60)
     _list_validation(sheet, header_row, 6, CREDIT_METHODS, last_row=60)
 
@@ -504,9 +535,22 @@ def _empty_people_sheets(workbook) -> None:
 
     sheet, header_row = _sheet(workbook, "Leave", LEAVE_HEADERS, LEAVE_WIDTHS,
                                note="From and To are both included in the "
-                                    "absence.")
-    _list_validation(sheet, header_row, 5,
-                     [code for code, *_ in DEFAULT_LEAVE_TYPES])
+                                    "absence. Type is a code from the Leave Types "
+                                    "sheet; A/L, S/L, C/L, M/L and S/D are always "
+                                    "understood.")
+    _leave_type_dropdown(sheet, header_row)
+
+
+def _leave_type_dropdown(sheet, header_row, last_row=400) -> None:
+    """Offer whatever codes the Leave Types sheet holds, rather than a fixed list.
+
+    The Leave Types sheet is created after the Leave sheet, with a note row and a
+    heading row above its data, so its codes start on row 3.
+    """
+    validation = DataValidation(type="list", formula1="='Leave Types'!$A$3:$A$60",
+                                allow_blank=True, showErrorMessage=False)
+    sheet.add_data_validation(validation)
+    validation.add(f"E{header_row + 1}:E{last_row}")
 
 
 def build_blank_template(path) -> None:
@@ -521,7 +565,7 @@ def build_blank_template(path) -> None:
     _details_sheet(workbook, first, last, is_demo=False)
     _rules_sheet(workbook)
     _empty_people_sheets(workbook)
-    _configuration_sheets(workbook)
+    _configuration_sheets(workbook, populate=False)
     workbook.save(path)
 
 
@@ -617,7 +661,7 @@ def _demo_patterns():
     ]
 
 
-def _demo_competencies(period_start: date):
+def _demo_competencies_by_old_code(period_start: date):
     """Fictional competencies, arranged to trigger each competency warning."""
     soon = period_start + timedelta(days=21)          # expires within 30 days
     later = period_start + timedelta(days=200)
@@ -692,6 +736,41 @@ def _demo_competencies(period_start: date):
     ]
 
 
+# The challenging example's competencies were written against four broad areas. They are expanded onto
+# the eight benches so the example uses the same ones as the balanced laboratory.
+_OLD_TO_BENCHES = {
+    "BT": [("GRP", "Grouping and antibody screening"),
+           ("XMTCH", "Crossmatch and electronic issue")],
+    "HAEM": [("FBC", None)],
+    "COAG": [("COAG", None)],
+    "MORPH": [("MORPH", None)],
+}
+
+
+def _demo_competencies(period_start: date):
+    """The challenging example's competencies, on the eight benches.
+
+    Deliberate gaps: only one scientist holds FLOW (and not more than one holds MORPH),
+    nobody holds HB'THY, and the authorising and senior pools are thin.
+    """
+    rows = []
+    for row in _demo_competencies_by_old_code(period_start):
+        staff_id, name, discipline, competency, *rest = row
+        targets = _OLD_TO_BENCHES.get(discipline, [(discipline, None)])
+        for bench, label in targets:
+            rows.append((staff_id, name, bench, label or competency, *rest))
+    later = period_start + timedelta(days=200)
+    achieved = period_start - timedelta(days=400)
+    C = CompetencyStatus.COMPETENT
+    rows += [
+        ("S02", "Jordan Test", "SPECS", "Specialist coagulation assays", C,
+         achieved, None, later, "N", "N", "N", ""),
+        ("S05", "Riley Placeholder", "FLOW", "Flow cytometry", C,
+         achieved, None, later, "N", "N", "N", "Only flow cytometry scientist"),
+    ]
+    return rows
+
+
 def _demo_leave(period_start: date, period_end: date):
     return [
         ("S02", "Jordan Test", period_start + timedelta(days=7),
@@ -738,16 +817,15 @@ def _staff_row(staff_id, name, title, band, *, registered="Y", senior="N",
 def _balanced_staff():
     """A fictional department that is genuinely well staffed.
 
-    Deliberately resilient: at least three independently competent staff in every
-    discipline, several authorisers, and part-time patterns spread across the week
-    rather than clustered at the start.  Contracted hours are sized to the service
-    this laboratory actually runs, so most people land close to their target.
-
-    Result authorisation and morphology sit with the senior group, which is how
-    many laboratories work.  That concentrates demand on those people, so this
-    example carries a deep senior pool rather than pushing authorisation down the
-    grades: nine of the fourteen are senior, several of them part-time.
+    Twenty-one people for eight benches. Resilient by construction: every bench is held by
+    several independently competent people, the out-of-hours trio (GRP, XMTCH, FBC) by ten,
+    result authorisation sits with a deep senior pool, and the part-time patterns are spread
+    across the week rather than clustered at the start. Contracted hours are sized to the
+    service this laboratory actually runs (about 17.5 whole-time equivalents), so everybody
+    lands close to their target.
     """
+    pt8, pt6 = dict(hours=30.0, fte=0.8, pattern="Part time"), \
+        dict(hours=22.5, fte=0.6, pattern="Part time")
     return [
         _staff_row("B01", "Ada Sample", "Laboratory Manager", "8a",
                    senior="Y", coordinator="Y", nights="N", weekends="N",
@@ -760,93 +838,103 @@ def _balanced_staff():
                    senior="Y", coordinator="Y"),
         _staff_row("B05", "Emre Placeholder", "Senior BMS", "6",
                    senior="Y", coordinator="Y"),
-        _staff_row("B06", "Fen Mock", "Senior BMS", "6", senior="Y"),
+        _staff_row("B06", "Fen Mock", "Senior BMS", "6", senior="Y", coordinator="Y"),
         _staff_row("B07", "Gale Dummy", "Senior BMS", "6", senior="Y"),
         _staff_row("B08", "Hero Specimen", "Senior BMS", "6", senior="Y",
-                   hours=30.0, fte=0.8, pattern="Part time", days="MTWRS",
-                   restrictions="No Fridays; available Saturdays"),
+                   days="MTWRS", nights="N",
+                   restrictions="No Fridays; available Saturdays; no nights", **pt8),
         _staff_row("B09", "Iris Template", "Senior BMS", "6", senior="Y",
-                   hours=30.0, fte=0.8, pattern="Part time", days="MTRFU",
-                   restrictions="No Wednesdays; available Sundays"),
-        _staff_row("B10", "Jules Draft", "BMS", "5", hours=30.0, fte=0.8,
-                   pattern="Part time", days="TWRFS", nights="N",
-                   restrictions="No Mondays; available Saturdays; no nights"),
-        _staff_row("B11", "Kit Trial", "BMS", "5", hours=30.0, fte=0.8,
-                   pattern="Part time", days="MWRFU", nights="N",
-                   restrictions="No Tuesdays; available Sundays; no nights"),
-        _staff_row("B12", "Lior Proxy", "BMS", "5", hours=22.5, fte=0.6,
-                   pattern="Part time", days="MTW", weekends="N", nights="N",
-                   restrictions="Monday to Wednesday; no nights or weekends"),
-        _staff_row("B13", "Mira Stub", "BMS", "5", hours=22.5, fte=0.6,
-                   pattern="Part time", days="WRF", nights="N", weekends="N",
-                   restrictions="Wednesday to Friday; no nights or weekends"),
-        _staff_row("B14", "Noor Filler", "Trainee BMS", "4", hours=22.5, fte=0.6,
-                   pattern="Part time", days="MTW",
+                   days="MTRFU", nights="N",
+                   restrictions="No Wednesdays; available Sundays; no nights", **pt8),
+        _staff_row("B10", "Jules Draft", "BMS", "5"),
+        _staff_row("B11", "Kit Trial", "BMS", "5"),
+        _staff_row("B12", "Lior Proxy", "BMS", "5", days="TWRFSU", nights="N",
+                   restrictions="No Mondays; available weekends; no nights", **pt8),
+        _staff_row("B13", "Mira Stub", "BMS", "5", days="MWRFU", nights="N",
+                   restrictions="No Tuesdays; available Sundays; no nights", **pt8),
+        _staff_row("B14", "Noor Filler", "BMS", "5", days="MTWRF", nights="N",
+                   weekends="N", restrictions="Weekdays only; no nights", **pt8),
+        _staff_row("B15", "Orla Pattern", "BMS", "5", days="MTW", nights="N",
+                   weekends="N",
+                   restrictions="Monday to Wednesday; no nights or weekends", **pt6),
+        _staff_row("B16", "Pax Outline", "BMS", "5", days="WRF", nights="N",
+                   weekends="N",
+                   restrictions="Wednesday to Friday; no nights or weekends", **pt6),
+        _staff_row("B17", "Quill Sketch", "BMS", "5", days="MRF", nights="N",
+                   weekends="N",
+                   restrictions="Monday, Thursday, Friday; no nights or weekends", **pt6),
+        _staff_row("B18", "Remy Schema", "BMS", "5", days="TWR", nights="N",
+                   weekends="N",
+                   restrictions="Tuesday to Thursday; no nights or weekends", **pt6),
+        _staff_row("B19", "Sasha Layout", "BMS", "5"),
+        _staff_row("B20", "Tavi Prototype", "BMS", "5"),
+        _staff_row("B21", "Uma Dummy", "Trainee BMS", "4", days="MWF",
                    registered="N", trainee="Y", nights="N", weekends="N",
-                   restrictions="Trainee; supervised working only"),
+                   restrictions="Trainee; supervised working only", **pt6),
     ]
+
+
+#: Who is competent where, written as a bench code with a marker: ^ trainer and assessor,
+#: nothing otherwise. Every XMTCH holder is also a result authoriser, because the XMTCH bench
+#: requires one. B21 is a trainee and holds nothing yet.
+_BALANCED_SKILLS = {
+    "B01": "FBC^ MORPH^ COAG",
+    "B02": "GRP XMTCH^ FBC MORPH SPECS",
+    "B03": "GRP XMTCH FBC COAG SPECS",
+    "B04": "GRP XMTCH FBC FLOW HB'THY",
+    "B05": "GRP XMTCH FBC MORPH FLOW",
+    "B06": "GRP XMTCH FBC COAG HB'THY",
+    "B07": "GRP XMTCH FBC COAG MORPH SPECS",
+    "B08": "GRP XMTCH FBC HB'THY FLOW",
+    "B09": "GRP XMTCH FBC FLOW SPECS",
+    "B10": "GRP XMTCH FBC COAG MORPH",
+    "B11": "GRP XMTCH FBC COAG HB'THY",
+    "B12": "GRP XMTCH FBC SPECS",
+    "B13": "GRP XMTCH FBC MORPH COAG",
+    "B14": "FBC COAG MORPH FLOW HB'THY",
+    "B15": "FBC COAG SPECS",
+    "B16": "FBC MORPH HB'THY SPECS",
+    "B17": "FBC COAG MORPH",
+    "B18": "FBC COAG FLOW",
+    "B19": "GRP XMTCH FBC FLOW MORPH",
+    "B20": "GRP XMTCH FBC SPECS HB'THY",
+}
+_BENCH_COMPETENCY_NAMES = {
+    "GRP": "Grouping and antibody screening",
+    "XMTCH": "Crossmatch and electronic issue",
+    "SPECS": "Specialist coagulation assays",
+    "FBC": "Full blood count reporting",
+    "COAG": "Routine coagulation",
+    "MORPH": "Blood film morphology",
+    "FLOW": "Flow cytometry",
+    "HB'THY": "Haemoglobinopathy screening",
+}
 
 
 def _balanced_competencies(period_start: date):
-    """Every discipline has at least three independently competent staff.
+    """Every bench is held by several independently competent people.
 
-    Transfusion and haematology are widely held, which is what allows out-of-hours
-    cover to rotate around the team instead of resting on two or three people.
+    The out-of-hours trio (GRP, XMTCH, FBC) is widely held, which is what allows nights and
+    weekends to rotate around the team instead of resting on two or three people.
     """
     later = period_start + timedelta(days=400)
     achieved = period_start - timedelta(days=500)
-    C, T, A, IT = (CompetencyStatus.COMPETENT, CompetencyStatus.TRAINER,
-                   CompetencyStatus.ASSESSOR, CompetencyStatus.IN_TRAINING)
-    Y, N = "Y", "N"
-
-    # staff, discipline, competency, status, trainer, assessor, authoriser
-    plan = [
-        ("B01", "HAEM", "Full blood count reporting", T, Y, Y, Y),
-        ("B01", "MORPH", "Blood film morphology", T, Y, Y, Y),
-        ("B02", "BT", "Crossmatch and electronic issue", T, Y, Y, Y),
-        ("B02", "HAEM", "Full blood count reporting", C, N, N, Y),
-        ("B02", "MORPH", "Blood film morphology", C, N, N, Y),
-        ("B03", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B03", "HAEM", "Full blood count reporting", C, N, N, Y),
-        ("B03", "COAG", "Routine coagulation", C, N, N, N),
-        ("B04", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B04", "HAEM", "Full blood count reporting", C, N, N, Y),
-        ("B04", "COAG", "Routine coagulation", A, Y, Y, N),
-        ("B04", "MORPH", "Blood film morphology", C, N, N, Y),
-        ("B05", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B05", "HAEM", "Full blood count reporting", C, N, N, Y),
-        ("B05", "MORPH", "Blood film morphology", C, N, N, N),
-        ("B06", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B06", "HAEM", "Full blood count reporting", C, N, N, Y),
-        ("B06", "COAG", "Routine coagulation", C, N, N, N),
-        ("B07", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B07", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B07", "COAG", "Routine coagulation", C, N, N, N),
-        ("B08", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B08", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B08", "COAG", "Routine coagulation", C, N, N, N),
-        ("B08", "MORPH", "Blood film morphology", C, N, N, Y),
-        ("B09", "BT", "Crossmatch and electronic issue", C, N, N, Y),
-        ("B09", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B09", "MORPH", "Blood film morphology", C, N, N, N),
-        ("B07", "MORPH", "Blood film morphology", C, N, N, N),
-        ("B13", "COAG", "Routine coagulation", C, N, N, N),
-        ("B10", "BT", "Crossmatch and electronic issue", C, N, N, N),
-        ("B10", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B10", "COAG", "Routine coagulation", C, N, N, N),
-        ("B11", "BT", "Crossmatch and electronic issue", C, N, N, N),
-        ("B11", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B12", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B12", "COAG", "Routine coagulation", C, N, N, N),
-        ("B13", "BT", "Crossmatch and electronic issue", C, N, N, N),
-        ("B13", "HAEM", "Full blood count reporting", C, N, N, N),
-        ("B14", "HAEM", "Sample processing", IT, N, N, N),
-    ]
+    C, T, IT = (CompetencyStatus.COMPETENT, CompetencyStatus.TRAINER,
+                CompetencyStatus.IN_TRAINING)
     names = {person[0]: person[1] for person in _balanced_staff()}
-    return [(staff_id, names.get(staff_id, ""), discipline, competency, status,
-             achieved, None, later, trainer, assessor, authoriser, "")
-            for staff_id, discipline, competency, status,
-            trainer, assessor, authoriser in plan]
+    rows = []
+    for staff_id, skills in _BALANCED_SKILLS.items():
+        for token in skills.split():
+            trainer = token.endswith("^")
+            bench = token.rstrip("^")
+            authoriser = "Y" if bench == "XMTCH" or trainer else "N"
+            rows.append((staff_id, names[staff_id], bench,
+                         _BENCH_COMPETENCY_NAMES[bench], T if trainer else C,
+                         achieved, None, later, "Y" if trainer else "N",
+                         "Y" if trainer else "N", authoriser, ""))
+    rows.append(("B21", names["B21"], "FBC", "Sample processing", IT,
+                 None, None, None, "N", "N", "N", "In training"))
+    return rows
 
 
 def _balanced_leave(period_start: date):
@@ -856,28 +944,26 @@ def _balanced_leave(period_start: date):
          period_start + timedelta(days=11), "A/L", "", "Booked leave"),
         ("B10", "Jules Draft", period_start + timedelta(days=17),
          period_start + timedelta(days=18), "A/L", "", "Booked leave"),
+        ("B16", "Pax Outline", period_start + timedelta(days=22),
+         period_start + timedelta(days=24), "S/D", "", "Training days"),
     ]
 
 
-#: Requirements the balanced workforce can comfortably deliver.
+#: Requirements the balanced workforce can comfortably deliver. Core is staffed to the eight
+#: benches plus one more person (nine), so the shift is never one absence away from a gap; the
+#: lone night worker holds the whole out-of-hours trio.
 BALANCED_REQUIREMENTS = [
     ("E", "Weekday", 1, 1, 0, 0, 0, 0, 0, 1, "", "", ""),
-    # Five on the main day service, not four: four sections needing four distinct
-    # competent people would leave no slack at all, so a single absence would put
-    # the shift out of compliance.
-    ("C", "Weekday", 5, 3, 1, 0, 0, 1, 0, 2,
-     "BT:1, HAEM:1, COAG:1, MORPH:1", "BT:1", "Main day service"),
-    ("L", "Weekday", 2, 1, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
-    # The out-of-hours lone worker must be registered and competent. Requiring
-    # "senior" as well would restrict nights to a handful of people, tie them up
-    # in night blocks and recovery days, and leave the day service short of the
-    # very people it needs.
-    ("N", "All", 1, 1, 0, 0, 0, 0, 0, 0, "BT:1, HAEM:1", "BT:1",
+    ("C", "Weekday", 9, 6, 1, 0, 0, 1, 0, 1,
+     "GRP:1, XMTCH:1, SPECS:1, FBC:1, COAG:1, MORPH:1, FLOW:1, HB'THY:1",
+     "XMTCH:1", "Main day service: one person on each bench, plus one"),
+    ("L", "Weekday", 3, 2, 1, 0, 0, 0, 0, 1, "GRP:1, XMTCH:1, FBC:1", "XMTCH:1", ""),
+    # The out-of-hours lone worker must be registered and competent in the whole trio.
+    # Requiring "senior" as well would restrict nights to a handful of people, tie them up
+    # in night blocks and recovery days, and leave the day service short.
+    ("N", "All", 1, 1, 0, 0, 0, 0, 0, 0, "GRP:1, XMTCH:1, FBC:1", "XMTCH:1",
      "Lone working out of hours"),
-    # A two-person weekend, with the senior on duty also coordinating. Three was
-    # about four per cent more work than this workforce is contracted for, which
-    # pushed most people slightly over their target hours.
-    ("W", "Weekend", 2, 2, 1, 0, 0, 0, 0, 1, "BT:1, HAEM:1", "BT:1", ""),
+    ("W", "Weekend", 3, 2, 1, 0, 0, 1, 0, 0, "GRP:1, XMTCH:1, FBC:1", "XMTCH:1", ""),
 ]
 
 
@@ -948,10 +1034,10 @@ def _build_example(path, flavour: str) -> None:
                                note=f"{label} — fictional absence records.")
     _write_rows(sheet, header_row,
                 _balanced_leave(first) if balanced else _demo_leave(first, last))
-    _list_validation(sheet, header_row, 5,
-                     [code for code, *_ in DEFAULT_LEAVE_TYPES])
+    _leave_type_dropdown(sheet, header_row)
 
     _configuration_sheets(
         workbook,
-        requirements=BALANCED_REQUIREMENTS if balanced else DEFAULT_REQUIREMENTS)
+        requirements=BALANCED_REQUIREMENTS if balanced else DEFAULT_REQUIREMENTS,
+        benches=EXAMPLE_BENCHES)
     workbook.save(path)

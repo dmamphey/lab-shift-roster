@@ -1,4 +1,4 @@
-"""Lab Shift Roster — a free, secure and intelligent workforce planning tool
+"""Lab Shift Roster — a secure and intelligent workforce planning tool
 for diagnostic laboratories.
 
 The package is deliberately made of small, independently testable modules, but
@@ -18,7 +18,18 @@ VERSION_LABEL = "1.1 Beta"
 PRODUCT_NAME = "Lab Shift Roster"
 COMPANY_NAME = "Optymum SS"
 CONTACT_EMAIL = "projects@optymumss.com"
-TAGLINE = "A free, secure and intelligent workforce planning tool for diagnostic laboratories."
+TAGLINE = "A secure and intelligent workforce planning tool for diagnostic laboratories."
+TAGLINE_FREE_PLAN = ("A free, secure and intelligent workforce planning tool for "
+                     "diagnostic laboratories.")
+
+
+def export_tagline(paid: bool = False) -> str:
+    """The tagline written into an exported rota.
+
+    A roster made on a paid plan (Pro or Enterprise) does not call the tool free;
+    one made on the free plan keeps saying so.
+    """
+    return TAGLINE if paid else TAGLINE_FREE_PLAN
 
 SCHEMA_VERSION = 3
 """Workbook schema version.  Written into the Settings sheet so an older

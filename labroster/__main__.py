@@ -105,7 +105,7 @@ def main(argv=None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="python -m labroster",
-        description="Lab Shift Roster — a free, secure and intelligent "
+        description="Lab Shift Roster — a secure and intelligent "
                     "workforce planning tool for diagnostic laboratories.")
     sub = parser.add_subparsers(dest="command", required=True)
 

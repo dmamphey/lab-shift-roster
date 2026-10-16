@@ -151,7 +151,7 @@ def _roster_payload(scheduler: Scheduler, analysis: Analysis) -> dict:
                     "shift": shift.code,
                     "shift_name": shift.name,
                     "bench": bench.name,
-                    "discipline": bench.discipline,
+                    "discipline": bench.label or bench.discipline,
                     "required": wanted,
                     "allocated": len(allocated),
                     "state": state,
@@ -170,7 +170,8 @@ def _roster_payload(scheduler: Scheduler, analysis: Analysis) -> dict:
         "leave_types": [{"code": entry.code, "label": entry.label,
                          "colour": entry.colour, "font": entry.font_colour}
                         for entry in config.leave_types.values()],
-        "benches": [{"name": bench.name, "discipline": bench.discipline}
+        "benches": [{"name": bench.name,
+                     "discipline": bench.label or bench.discipline}
                     for bench in config.benches],
     }
 
@@ -194,7 +195,7 @@ def _details_payload(config: Config) -> dict:
 
 
 def export_workbook(scheduler: Scheduler, analysis: Analysis,
-                    audience: str = "manager") -> bytes:
+                    audience: str = "manager", paid: bool = False) -> bytes:
     """Write one of the two workbooks from an already-generated roster.
 
     Kept separate from :func:`generate` so a manager can produce both the staff
@@ -202,7 +203,7 @@ def export_workbook(scheduler: Scheduler, analysis: Analysis,
     without losing any manual adjustments.
     """
     buffer = io.BytesIO()
-    write_workbook(scheduler, analysis, buffer, audience=audience)
+    write_workbook(scheduler, analysis, buffer, audience=audience, paid=paid)
     return buffer.getvalue()
 
 
@@ -333,13 +334,14 @@ def generate(data: bytes, start: str | None = None, end: str | None = None,
         "issues": analysis.issues_payload(),
         "hours": analysis.hours_payload(),
         "roster": _roster_payload(scheduler, analysis),
-        "resilience": [{"discipline": item.discipline,
+        "resilience": [{"discipline": analysis.discipline_name(item.discipline),
                         "competent": item.competent_count,
                         "authorisers": item.authoriser_count,
                         "severity": item.severity,
                         "message": item.message}
                        for item in analysis.workforce_resilience],
-        "expiring": [{"name": item["name"], "discipline": item["discipline"],
+        "expiring": [{"name": item["name"],
+                      "discipline": analysis.discipline_name(item["discipline"]),
                       "competency": item["name_of_competency"],
                       "expiry": item["expiry"].isoformat() if item["expiry"] else None,
                       "days": item["days"], "state": item["state"]}

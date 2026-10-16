@@ -152,31 +152,52 @@ class Reader:
                     return self.workbook[title]
         return None
 
-    def table(self, sheet, required_columns, sheet_label) -> list[dict]:
+    def table(self, sheet, required_columns, sheet_label, aliases=None,
+              quiet=False) -> list[dict]:
         """Find the header row and return rows as dictionaries.
 
         Headers are matched loosely, so capitalisation, spacing and column order
         do not matter.  A missing required column is reported by name.
+
+        ``aliases`` lets a column be headed by another name: ``{"Discipline":
+        ["Bench", "Bench or Discipline"]}`` reads a column headed either way as
+        "Discipline".  ``quiet`` suppresses the missing-column report, for a second
+        look at a sheet that has already been reported on.
         """
         if sheet is None:
             return []
         wanted = {norm(name): name for name in required_columns}
+        alternatives = {norm(name): [norm(alias) for alias in names]
+                        for name, names in (aliases or {}).items()}
+
+        def with_aliases(found):
+            for key, options in alternatives.items():
+                if key not in found:
+                    for option in options:
+                        if option in found:
+                            found[key] = found[option]
+                            break
+            return found
+
         for scan_row in range(1, 12):
             found = {}
             for cell in sheet[scan_row]:
                 if cell.value not in (None, ""):
                     found[norm(cell.value)] = cell.column
+            found = with_aliases(found)
             if all(key in found for key in wanted):
                 return self._rows_from(sheet, scan_row, found)
 
         # Report exactly which columns are missing, using the manager's names.
         best_row, best_found = 1, {}
         for scan_row in range(1, 12):
-            found = {norm(c.value): c.column for c in sheet[scan_row]
-                     if c.value not in (None, "")}
+            found = with_aliases({norm(c.value): c.column for c in sheet[scan_row]
+                                  if c.value not in (None, "")})
             if len(found) > len(best_found):
                 best_row, best_found = scan_row, found
         missing = [name for key, name in wanted.items() if key not in best_found]
+        if quiet:
+            return self._rows_from(sheet, best_row, best_found)
         self.add(ERROR, sheet_label,
                  f"The {sheet_label} sheet is missing the "
                  f"{', '.join(repr(m) for m in missing)} column"
@@ -482,8 +503,10 @@ class Reader:
                      "know who can work in each laboratory section.")
             return []
 
+        # Bench and discipline are two names for the same thing, so either heading is read.
         rows = self.table(sheet, ["Staff ID", "Discipline", "Status"],
-                          "Competencies")
+                          "Competencies",
+                          aliases={"Discipline": ["Bench", "Bench or Discipline"]})
         known = {person.staff_id for person in staff}
         records: list[Competency] = []
 
@@ -501,8 +524,9 @@ class Reader:
             discipline = str(record.get("discipline") or "").strip().upper()
             if not discipline:
                 self.add(ERROR, "Competencies",
-                         f"A competency for '{staff_id}' has no discipline. Enter "
-                         f"the laboratory section it applies to, for example BT.",
+                         f"A competency for '{staff_id}' has no bench (discipline). "
+                         f"Enter the laboratory section it applies to, as it is "
+                         f"written on the Benches sheet.",
                          row=row_number)
                 continue
 
@@ -674,6 +698,50 @@ class Reader:
                          f"Add a row saying how many people it needs.")
         return requirements
 
+    def bench_aliases(self) -> dict[str, str]:
+        """Let a bench be named either way: by its Bench value or its Discipline.
+
+        On the Benches sheet "Bench" is the short name used on the rota (GRP) and
+        "Discipline" its full name (Grouping). They are two names for one thing, so
+        a competency or a requirement may use either. The engine matches on the
+        Discipline value, so every Bench value is mapped onto it here, once, before
+        anything is matched.
+
+        A name is left alone when it would be ambiguous: when two benches claim it,
+        or when it is already another bench's discipline. Workbooks that use one
+        word for both, as most do, are unaffected.
+        """
+        sheet = self.sheet("Benches", "Bench", "Sections")
+        if sheet is None:
+            return {}
+        pairs = []
+        for record in self.table(sheet, ["Bench", "Discipline"], "Benches",
+                                 quiet=True):
+            name = str(record.get("bench") or "").strip().upper()
+            discipline = str(record.get("discipline") or "").strip().upper()
+            if name and discipline:
+                pairs.append((name, discipline))
+        disciplines = {discipline for _, discipline in pairs}
+        alias: dict[str, str] = {}
+        ambiguous: set[str] = set()
+        for name, discipline in pairs:
+            if name == discipline or name in disciplines:
+                continue
+            if name in alias and alias[name] != discipline:
+                ambiguous.add(name)
+            alias[name] = discipline
+        for name in ambiguous:
+            alias.pop(name, None)
+        return alias
+
+    @staticmethod
+    def _remap_counts(counts: dict[str, int], alias: dict[str, str]) -> dict[str, int]:
+        merged: dict[str, int] = {}
+        for key, value in counts.items():
+            target = alias.get(key.upper(), key.upper())
+            merged[target] = max(merged.get(target, 0), value)
+        return merged
+
     def read_benches(self, shifts: list[ShiftType],
                      competencies: list[Competency]) -> list[Bench]:
         sheet = self.sheet("Benches", "Bench", "Sections")
@@ -696,14 +764,16 @@ class Reader:
             discipline = str(record.get("discipline") or "").strip().upper()
             if not discipline:
                 self.add(ERROR, "Benches",
-                         f"Bench '{name}' has no discipline, so Lab Shift Roster cannot "
-                         f"tell who is competent to cover it.", row=row_number)
+                         f"Bench '{name}' has no discipline (its full name), so Lab "
+                         f"Shift Roster cannot tell who is competent to cover it.",
+                         row=row_number)
                 continue
             if discipline not in held:
                 self.add(WARNING, "Benches",
                          f"Nobody in the workforce holds a '{discipline}' "
-                         f"competency, so {name} can never be covered. Check the "
-                         f"discipline code matches the Competencies sheet.",
+                         f"competency, so bench '{name}' can never be covered. "
+                         f"Check the bench or discipline written on the "
+                         f"Competencies sheet matches the Benches sheet.",
                          row=row_number)
 
             shift_codes = [part.strip() for part
@@ -723,6 +793,7 @@ class Reader:
             weekend_min = record.get("minstaffweekend")
             benches.append(Bench(
                 name=name, discipline=discipline,
+                label=str(record.get("discipline") or "").strip(),
                 days=str(record.get("days") or "All").strip() or "All",
                 min_staff=max(0, _to_int(record.get("minstaff"), 1)),
                 min_weekend=(None if weekend_min in (None, "")
@@ -868,6 +939,16 @@ class Reader:
         competencies = self.read_competencies(staff, period)
         shifts = self.read_shifts()
         requirements = self.read_requirements(shifts)
+        alias = self.bench_aliases()
+        if alias:
+            for record in competencies:
+                record.discipline = alias.get(record.discipline.upper(),
+                                              record.discipline.upper())
+            for requirement in requirements:
+                requirement.required_competencies = self._remap_counts(
+                    requirement.required_competencies, alias)
+                requirement.required_authorisers = self._remap_counts(
+                    requirement.required_authorisers, alias)
         benches = self.read_benches(shifts, competencies)
         leave_types = self.read_leave_types()
         leave = self.read_leave(staff, period, leave_types)

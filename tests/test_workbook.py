@@ -96,7 +96,10 @@ def test_the_default_rota_name_is_organisation_neutral(blank_bytes):
     sheet = load_workbook(io.BytesIO(blank_bytes))["Roster Details"]
     values = [str(cell.value) for row in sheet.iter_rows() for cell in row
               if cell.value is not None]
-    assert "Laboratory Staff Rota" in values
+    # The blank workbook names no rota and no laboratory at all; the neutral default
+    # applies only when the workbook is read.
+    assert "Laboratory Staff Rota" not in values
+    assert "Blood Sciences" not in values
     joined = " ".join(values)
     assert "GEH" not in joined and "BMS Rota" not in joined
 
@@ -365,7 +368,10 @@ def test_every_problem_is_reported_at_once_not_one_at_a_time():
 
 def test_an_unknown_discipline_on_the_benches_sheet_is_a_warning_not_an_error():
     def unknown_discipline(workbook):
-        workbook["Benches"]["B3"] = "NOSUCH"          # first data row
+        # Bench and discipline are interchangeable, so a competency written with either
+        # finds the bench. Only a bench whose BOTH names are unknown can never be covered.
+        workbook["Benches"]["A3"] = "NOSUCH"          # first data row
+        workbook["Benches"]["B3"] = "NOSUCH"
     data = _modified_demo(unknown_discipline)
     result = api.generate(data)
     assert result["ok"], "an uncoverable bench should warn, not block generation"
@@ -393,7 +399,7 @@ def _all_text(data):
 def test_the_staff_rota_contains_only_what_staff_need(demo_result):
     staff, _ = _exports(demo_result)
     workbook = load_workbook(io.BytesIO(staff))
-    assert workbook.sheetnames == ["Roster", "Section Allocations", "Notes"]
+    assert workbook.sheetnames == ["Roster", "Bench Allocations", "Notes"]
 
 
 def test_the_manager_report_keeps_the_full_analysis(demo_result):
@@ -508,7 +514,9 @@ def test_every_workbook_carries_the_product_name_and_tagline(builder):
     data = getattr(api, builder)()
     text = _all_text(data)
     assert "Lab Shift Roster" in text, f"{builder} does not name the product"
-    assert "free, secure and intelligent" in text, \
+    assert "a secure and intelligent workforce planning tool" in text.lower(), \
         f"{builder} does not carry the tagline"
+    assert "free, secure and intelligent" not in text, \
+        f"{builder} still calls the tool free"
     assert "LabRoster" not in text.replace("Lab Shift Roster", ""), \
         f"{builder} still uses the old name"

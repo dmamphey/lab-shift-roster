@@ -12,6 +12,7 @@ it reports what the draft roster does and does not achieve.
 
 from __future__ import annotations
 
+import re
 import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -47,9 +48,18 @@ class Issue:
     causes: list[str] = field(default_factory=list)
     """The underlying checks that produced this issue.  Managers see one
     actionable problem; traceability back to the individual rules is kept here."""
+    count: int = 1
+    """How many individual findings this issue stands for (1 unless consolidated)."""
+    details: list[dict] = field(default_factory=list)
+    """The findings behind a consolidated issue, one line each, for the manager who
+    wants to see exactly where."""
+    span: str = ""
+    """For a consolidated issue, the stretch of dates it covers, in words."""
 
     @property
     def when(self) -> str:
+        if self.span:
+            return self.span
         return self.day.strftime("%a %d %b %Y") if self.day else ""
 
 
@@ -100,6 +110,10 @@ class Analysis:
 
         self.gaps: list[Shortfall] = []
         self.issues: list[Issue] = []
+        #: The same findings, gathered into one actionable item per cause. ``issues``
+        #: keeps every individual finding for traceability and for the tests; this is
+        #: what a manager is shown and counted against.
+        self.summary_issues: list[Issue] = []
         self.hours_rows: list[HoursRow] = []
         self.workforce_resilience: list[Resilience] = []
         self.expiring: list[dict] = []
@@ -123,6 +137,7 @@ class Analysis:
         self.check_workforce_resilience()
         self.check_shift_resilience()
         self.build_recency()
+        self.summary_issues = self.consolidate()
         self.build_metrics()
 
     def add(self, severity, category, title, explanation, **kwargs) -> None:
@@ -246,8 +261,20 @@ class Analysis:
 
         This is the single place that decision is made, so it can be changed to
         expand codes into full names without touching anything else.
+
+        Bench and discipline are two names for one thing, and on the rota the short
+        one is used: when the Benches sheet gives a bench a short upper-case name
+        (GRP) alongside a full discipline name (Grouping), the short name is shown.
+        A workbook that uses one word for both is unaffected.
         """
-        return (code or "").upper()
+        key = (code or "").upper()
+        for bench in self.config.benches:
+            name = bench.name.strip()
+            if (bench.discipline.upper() == key and name != name.lower()
+                    and name == name.upper() and " " not in name
+                    and len(name) <= 10 and name.upper() != key):
+                return name
+        return key
 
     def final_gaps(self) -> list[Shortfall]:
         """Coverage gaps in the *finished* roster.
@@ -565,7 +592,8 @@ class Analysis:
                     "expiry": record.expiry_date, "days": record.days_until_expiry(as_of),
                     "state": "Expired"})
                 self.add(CRITICAL, "Competency",
-                         f"{person.name}'s {record.discipline} competency has expired",
+                         f"{person.name}'s {self.discipline_name(record.discipline)} "
+                         f"competency has expired",
                          f"The record expired on "
                          f"{record.expiry_date.strftime('%d %b %Y') if record.expiry_date else 'an unrecorded date'}. "
                          f"Expired competencies are not counted as coverage.",
@@ -583,7 +611,8 @@ class Analysis:
                     "expiry": record.expiry_date, "days": days,
                     "state": f"Within {band} days"})
                 self.add(REVIEW, "Competency",
-                         f"{person.name}'s {record.discipline} competency expires soon",
+                         f"{person.name}'s {self.discipline_name(record.discipline)} "
+                         f"competency expires soon",
                          f"It expires on {record.expiry_date.strftime('%d %b %Y')}, "
                          f"in {days} days.",
                          review_point="Schedule reassessment before the expiry date.",
@@ -603,6 +632,7 @@ class Analysis:
         """
         as_of = self.period.start
         for discipline in self.config.disciplines():
+            label = self.discipline_name(discipline)
             competent = [person.staff_id for person in self.config.staff
                          if self.config.is_independently_competent(
                              person.staff_id, discipline, as_of)]
@@ -613,26 +643,26 @@ class Analysis:
             if count <= 1:
                 severity, message = CRITICAL, (
                     f"Only {count} member of staff in the workforce is "
-                    f"independently competent in {discipline}. If they are absent, "
+                    f"independently competent in {label}. If they are absent, "
                     f"the laboratory has no cover at all.")
             elif count == 2:
                 severity, message = REVIEW, (
                     f"Two members of staff are independently competent in "
-                    f"{discipline}. Cover depends on both remaining available.")
+                    f"{label}. Cover depends on both remaining available.")
             else:
                 severity, message = PASSED, (
                     f"{count} members of staff are independently competent in "
-                    f"{discipline}.")
+                    f"{label}.")
 
             self.workforce_resilience.append(Resilience(
                 discipline=discipline, competent_count=count,
                 authoriser_count=len(authorisers), severity=severity,
                 message=message))
             self.add(severity, "Workforce resilience",
-                     f"{discipline}: {count} independently competent",
+                     f"{label}: {count} independently competent",
                      message,
                      review_point=("Consider training additional staff in this "
-                                   "discipline." if severity != PASSED else ""),
+                                   "bench." if severity != PASSED else ""),
                      staff=competent)
 
     def check_shift_resilience(self) -> None:
@@ -641,6 +671,12 @@ class Analysis:
         Reported one line per shift and discipline, with a count of how many
         dates are affected, rather than one line per day.  A thinly covered
         section is one problem to think about, not thirty.
+
+        Two judgements keep this honest. A shift with one person on it is single-handed
+        by the manager's own choice, so "only one person is on duty" tells them nothing
+        new there. And one competent person on a shift is a real exposure only if nobody
+        else rostered that day on a different day shift could stand in; where somebody
+        could, the cover is not fragile.
         """
         as_of = self.period.start
         thin: dict[tuple[str, str, str], list] = defaultdict(list)
@@ -650,16 +686,21 @@ class Analysis:
                 if not shift.applies_on(day, self.rules.weekend_days):
                     continue
                 on_duty = self.scheduler.assigned_to(day, shift)
-                if not on_duty:
-                    continue
+                if len(on_duty) < 2:
+                    continue                      # single-handed by design
                 requirement = self.config.requirement_for(shift, day)
+                elsewhere = [sid for other in self.config.shifts
+                             if other.code != shift.code and not other.is_night
+                             for sid in self.scheduler.assigned_to(day, other)]
 
                 for discipline in self.scheduler.competency_demand(
                         day, shift, requirement):
                     competent = [sid for sid in on_duty
                                  if self.config.is_independently_competent(
                                      sid, discipline, as_of)]
-                    if len(competent) == 1:
+                    if len(competent) == 1 and not any(
+                            self.config.is_independently_competent(
+                                sid, discipline, as_of) for sid in elsewhere):
                         thin[(shift.code, discipline, "competent")].append(
                             (day, competent[0]))
 
@@ -667,7 +708,9 @@ class Analysis:
                     authorisers = [sid for sid in on_duty
                                    if self.config.can_authorise(
                                        sid, discipline.upper(), as_of)]
-                    if len(authorisers) == 1:
+                    if len(authorisers) == 1 and not any(
+                            self.config.can_authorise(sid, discipline.upper(), as_of)
+                            for sid in elsewhere):
                         thin[(shift.code, discipline.upper(),
                               "authoriser")].append((day, authorisers[0]))
 
@@ -680,14 +723,16 @@ class Analysis:
             named = ", ".join(self.name_of(sid) for sid in people[:4])
             if len(people) > 4:
                 named += f" and {len(people) - 4} others"
+            label = self.discipline_name(discipline)
             self.add(REVIEW, "Shift resilience",
                      f"{shift_names.get(shift_code, shift_code)}: single "
-                     f"{discipline} {role.split()[0]} cover on "
+                     f"{label} {role.split()[0]} cover on "
                      f"{len(occurrences)} date"
                      f"{'s' if len(occurrences) > 1 else ''}",
                      f"On {len(occurrences)} of these shifts there is only one "
-                     f"{discipline} {role} on duty ({named}). Short-notice absence "
-                     f"on those days would leave the section uncovered. First "
+                     f"{label} {role} on duty ({named}) and nobody else rostered "
+                     f"that day could stand in. Short-notice absence on those days "
+                     f"would leave the section uncovered. First "
                      f"affected: {min(dates):%d %b}, last: {max(dates):%d %b}.",
                      review_point="Consider rostering a second competent person, "
                                   "or accept the risk knowingly.",
@@ -709,6 +754,10 @@ class Analysis:
                 last_seen[key] = allocation.day
 
         threshold = self.rules.rotation_warning_days
+        # Not having worked a section within the roster only breaches an N-day
+        # rotation interval if the roster is at least N days long. Over a shorter one
+        # nothing is known about the rest of the interval, so nothing is claimed.
+        judgeable = bool(threshold) and self.period.day_count >= threshold
         for person in self.config.staff:
             for discipline in self.config.disciplines():
                 if not self.config.is_independently_competent(
@@ -723,10 +772,11 @@ class Analysis:
                     "days_since_last_assignment": days_since,
                     "target_rotation_interval": threshold,
                 })
-                if worked is None and threshold:
+                if worked is None and judgeable:
+                    label = self.discipline_name(discipline)
                     self.add(REVIEW, "Section rotation",
-                             f"{person.name} did not work in {discipline}",
-                             f"{person.name} is competent in {discipline} but was "
+                             f"{person.name} did not work in {label}",
+                             f"{person.name} is competent in {label} but was "
                              f"not allocated to it during this period.",
                              review_point=f"Rotation interval is configured at "
                                           f"{threshold} days. Adjust if this is "
@@ -769,6 +819,169 @@ class Analysis:
         return self.fairness([self.scheduler.count_night_blocks(p.staff_id)
                               for p in eligible])
 
+    # -- consolidation ---------------------------------------------------
+
+    #: How the headline of a consolidated coverage problem reads, by category.
+    COVERAGE_TITLES = {
+        "Staffing level": "Short of staff on {n} shift{s}",
+        "Senior cover": "No senior member of staff on {n} shift{s}",
+        "Registration": "Too few registered staff on {n} shift{s}",
+        "Shift coordination": "No shift coordinator on {n} shift{s}",
+        "Competency coverage": "Required competencies not met on {n} shift{s}",
+        "Authorisation": "No result authoriser on {n} shift{s}",
+        "Training": "No trainer or supervisor on {n} shift{s}",
+        "Section coverage": "Sections left uncovered on {n} shift{s}",
+        "Band cover": "Required band not met on {n} shift{s}",
+        "Coverage": "Coverage gaps on {n} shift{s}",
+    }
+    #: The same for everything else: {n} is how many findings, {s} an "s" if not one.
+    OTHER_TITLES = {
+        ("Contracted hours", REVIEW): "{n} staff outside their contracted hours",
+        ("Section rotation", REVIEW):
+            "{n} staff have not worked a section they are competent in",
+        ("Shift resilience", REVIEW):
+            "{n} shifts rely on a single competent person",
+        ("Workforce resilience", CRITICAL):
+            "{n} benches have one competent person or none",
+        ("Workforce resilience", REVIEW):
+            "{n} benches have only two competent people",
+        ("Competency", CRITICAL): "{n} competenc{y} expired",
+        ("Competency", REVIEW): "{n} competenc{y} expiring soon",
+        ("Availability", CRITICAL): "{n} people rostered while unavailable",
+        ("Rest", CRITICAL): "{n} configured rest rule conflicts",
+        ("Bench coverage", CRITICAL):
+            "{n} cases of one person counted on more than one bench",
+    }
+
+    @staticmethod
+    def _dates_in_words(days: list[date]) -> str:
+        days = sorted(set(days))
+        if not days:
+            return ""
+        if len(days) == 1:
+            return f"{days[0]:%a %d %b}"
+        return f"{len(days)} dates, {days[0]:%d %b} to {days[-1]:%d %b}"
+
+    def consolidate(self) -> list[Issue]:
+        """Gather the individual findings into one actionable item per cause.
+
+        A laboratory with one underlying problem, say too few seniors for the late
+        shift, used to be shown thirty critical items, one per date. That is a wall of
+        red that hides the one thing to fix and teaches people to stop looking. Here
+        findings of one kind and severity become a single item that says how many
+        and where, with every finding kept underneath it. Passed checks are left as
+        they are, and a category with a single finding is shown unchanged.
+        """
+        grouped: dict[tuple[str, str], list[Issue]] = defaultdict(list)
+        order: list[tuple[str, str]] = []
+        result: list[Issue] = []
+        for issue in self.issues:
+            if issue.severity == PASSED:
+                result.append(issue)
+                continue
+            key = (issue.severity, issue.category)
+            if key not in grouped:
+                order.append(key)
+            grouped[key].append(issue)
+
+        coverage_categories = {label for label, _ in self.KIND_LABELS.values()} | {
+            "Coverage"}
+        shift_names = {shift.code: shift.name for shift in self.config.shifts}
+        merged: list[Issue] = []
+        for key in order:
+            group = grouped[key]
+            severity, category = key
+            if len(group) == 1:
+                merged.append(group[0])
+                continue
+            if category in coverage_categories:
+                merged.append(self._merge_coverage(severity, category, group,
+                                                   shift_names))
+            else:
+                merged.append(self._merge_other(severity, category, group))
+        # Worst first, then in the order they were found, so the list reads top-down.
+        merged.sort(key=lambda item: 0 if item.severity == CRITICAL else 1)
+        return merged + result
+
+    def _merge_coverage(self, severity, category, group, shift_names) -> Issue:
+        count = len(group)
+        lines: dict[tuple, list[date]] = defaultdict(list)
+        for issue in group:
+            lines[(issue.shift_code, issue.bench_name, issue.title)].append(issue.day)
+        details = []
+        for (shift_code, bench, title), days in sorted(
+                lines.items(), key=lambda item: (-len(item[1]), item[0][2])):
+            where = shift_names.get(shift_code, shift_code)
+            details.append({
+                "title": f"{where}: {title}" if where and where not in title else title,
+                "explanation": self._dates_in_words([d for d in days if d]),
+                "when": self._dates_in_words([d for d in days if d]),
+                "shift": shift_code, "bench": bench, "staff": []})
+        by_shift = Counter(issue.shift_code for issue in group)
+        most = ", ".join(f"{shift_names.get(code, code)} ({n})"
+                         for code, n in by_shift.most_common(3) if code)
+        days = [issue.day for issue in group if issue.day]
+        # Titles count shifts, not findings: one shift can fail several ways at once.
+        shifts_affected = len({(issue.day, issue.shift_code) for issue in group})
+        template = self.COVERAGE_TITLES.get(category, "Coverage gaps on {n} shift{s}")
+        title = template.format(n=shifts_affected,
+                                s="" if shifts_affected == 1 else "s")
+        distinct_required = {issue.required for issue in group if issue.required}
+        return Issue(
+            severity=severity, category=category, title=title,
+            explanation=(f"{shifts_affected} shifts do not meet this requirement "
+                         f"({count} findings in all)"
+                         + (f", most often {most}" if most else "")
+                         + (f", between {min(days):%d %b} and {max(days):%d %b}."
+                            if days else ".")),
+            review_point=self._commonest(group, "review_point"),
+            shift_code=(next(iter(by_shift)) if len(by_shift) == 1 else ""),
+            required=(next(iter(distinct_required))
+                      if len(distinct_required) == 1 else ""),
+            available=(group[0].available if len(distinct_required) == 1 else ""),
+            impact=self._commonest(group, "impact"),
+            causes=sorted({cause for issue in group for cause in issue.causes
+                           if len(cause) < 24}),
+            count=count, details=details,
+            span=self._dates_in_words(days) if days else "")
+
+    def _merge_other(self, severity, category, group) -> Issue:
+        count = len(group)
+        template = self.OTHER_TITLES.get(
+            (category, severity), category + ": {n} items to look at")
+        title = template.format(n=count, y="y" if count == 1 else "ies",
+                                s="" if count == 1 else "s")
+        details = [{"title": issue.title, "explanation": issue.explanation,
+                    "when": issue.when, "shift": issue.shift_code,
+                    "bench": issue.bench_name,
+                    "staff": [self.name_of(sid) for sid in issue.staff[:6]]}
+                   for issue in group]
+        people = []
+        for issue in group:
+            for sid in issue.staff:
+                if sid not in people:
+                    people.append(sid)
+        named = ", ".join(self.name_of(sid) for sid in people[:5])
+        if len(people) > 5:
+            named += f" and {len(people) - 5} others"
+        first = group[0].title.rstrip(".")
+        explanation = (f"{named}." if people and category in (
+            "Contracted hours", "Section rotation", "Availability", "Competency")
+            else f"{first}, and {count - 1} more like it.")
+        return Issue(
+            severity=severity, category=category, title=title,
+            explanation=explanation,
+            review_point=self._commonest(group, "review_point"),
+            staff=people[:8], count=count, details=details,
+            shift_code=(group[0].shift_code
+                        if len({i.shift_code for i in group}) == 1 else ""))
+
+    @staticmethod
+    def _commonest(group: list[Issue], attribute: str) -> str:
+        values = Counter(getattr(issue, attribute) for issue in group
+                         if getattr(issue, attribute))
+        return values.most_common(1)[0][0] if values else ""
+
     # -- dashboard -------------------------------------------------------
 
     def build_metrics(self) -> None:
@@ -780,11 +993,15 @@ class Analysis:
         compliance = (100.0 if not shifts_total
                       else round(100.0 * shifts_met / shifts_total, 1))
 
-        critical = [issue for issue in self.issues if issue.severity == CRITICAL]
-        review = [issue for issue in self.issues if issue.severity == REVIEW]
+        critical = [issue for issue in self.summary_issues
+                    if issue.severity == CRITICAL]
+        review = [issue for issue in self.summary_issues if issue.severity == REVIEW]
 
-        # What is actually driving the problems, so a manager can start somewhere.
-        causes = Counter(issue.category for issue in critical + review)
+        # What is actually driving the problems, so a manager can start somewhere:
+        # how many individual findings each cause stands for.
+        causes = Counter()
+        for issue in critical + review:
+            causes[issue.category] += issue.count
 
         if critical:
             status = "ATTENTION REQUIRED"
@@ -832,7 +1049,11 @@ class Analysis:
             "night_fairness": night_verdict,
             "critical_count": len(critical),
             "review_count": len(review),
-            "passed_count": len([i for i in self.issues if i.severity == PASSED]),
+            "passed_count": len([i for i in self.summary_issues
+                                 if i.severity == PASSED]),
+            # The individual findings behind those items, for anybody who wants them.
+            "critical_detail_count": sum(i.count for i in critical),
+            "review_detail_count": sum(i.count for i in review),
             "total_assignments": len(self.scheduler.assignments),
             "staff_count": len(self.config.staff),
             "day_count": self.period.day_count,
@@ -841,6 +1062,7 @@ class Analysis:
     # -- serialisation for the browser -----------------------------------
 
     def issues_payload(self) -> list[dict]:
+        """The consolidated items a manager is shown, each with its findings beneath."""
         return [{
             "severity": issue.severity,
             "category": issue.category,
@@ -856,7 +1078,9 @@ class Analysis:
             "available": issue.available,
             "impact": issue.impact,
             "causes": issue.causes,
-        } for issue in self.issues]
+            "count": issue.count,
+            "details": issue.details,
+        } for issue in self.summary_issues]
 
     def hours_payload(self) -> list[dict]:
         return [{

@@ -45,7 +45,7 @@ def _grid_bounds(sheet):
     for row in range(first, sheet.max_row + 1):
         label = sheet.cell(row=row, column=1).value
         text = str(label).strip() if label else ""
-        if text.upper() in ("SECTION ALLOCATION", "KEY", "LEGEND"):
+        if text.upper() in ("BENCH ALLOCATION", "KEY", "LEGEND"):
             break
         if text:
             last = row
@@ -71,7 +71,7 @@ def _section_initials(sheet):
     codes = set()
     for row in range(1, sheet.max_row + 1):
         label = sheet.cell(row=row, column=1).value
-        if str(label).strip().upper() == "SECTION ALLOCATION" if label else False:
+        if str(label).strip().upper() == "BENCH ALLOCATION" if label else False:
             started = True
             continue
         if not started:

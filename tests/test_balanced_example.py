@@ -38,7 +38,7 @@ def challenging():
 def test_the_balanced_workbook_has_no_validation_errors(balanced_bytes):
     config, problems = read_workbook(io.BytesIO(balanced_bytes))
     assert [p for p in problems if p.severity == ERROR] == []
-    assert len(config.staff) == 14
+    assert len(config.staff) == 21
 
 
 def test_it_is_labelled_as_the_balanced_example(balanced_bytes):
@@ -67,9 +67,14 @@ def test_nearly_every_shift_meets_all_configured_requirements(balanced):
     assert balanced["dashboard"]["shifts_meeting_all_requirements_percent"] >= 95.0
 
 
-def test_there_are_few_critical_problems(balanced):
-    """The point of this fixture: a strong draft, not a wall of red."""
-    assert balanced["dashboard"]["critical_count"] <= 5
+def test_there_are_no_critical_or_review_items_only_passed(balanced):
+    """The point of this fixture: a perfect draft. Nothing to resolve, nothing to review."""
+    dashboard = balanced["dashboard"]
+    assert dashboard["critical_count"] == 0
+    assert dashboard["review_count"] == 0
+    assert dashboard["roster_status"] == "NO ISSUES FOUND"
+    assert {issue["severity"] for issue in balanced["issues"]} == {"PASSED"}
+    assert dashboard["passed_count"] >= 1
 
 
 def test_it_produces_far_fewer_criticals_than_the_challenging_example(
@@ -105,7 +110,9 @@ def test_senior_cover_is_met_throughout(balanced):
 
 def test_contracted_hours_land_close_to_target(balanced):
     off_target = balanced["dashboard"]["staff_outside_target_hours"]
-    assert off_target <= 4, f"{off_target} staff are outside their target hours"
+    assert off_target == 0, f"{off_target} staff are outside their target hours"
+    percents = [row["percent"] for row in balanced["hours"] if row["percent"]]
+    assert min(percents) >= 93 and max(percents) <= 107, sorted(percents)
 
 
 def test_no_competency_has_expired(balanced):
@@ -214,4 +221,62 @@ def test_turning_night_sharing_on_spreads_nights_more_widely(balanced_bytes):
 
 def test_weekend_days_are_shared_without_being_asked(balanced):
     """A weekend day costs nothing but itself, so sharing them is close to free."""
-    assert balanced["dashboard"]["weekend_fairness"] in ("Good", "Review")
+    assert balanced["dashboard"]["weekend_fairness"] == "Good"
+
+
+def test_nights_are_shared_in_whole_blocks(balanced):
+    assert balanced["dashboard"]["night_fairness"] == "Good"
+
+
+def test_the_challenging_example_is_summarised_to_a_handful_of_items(challenging):
+    """Seventy findings used to be seventy rows. Now each cause is one actionable item."""
+    dashboard = challenging["dashboard"]
+    assert 1 <= dashboard["critical_count"] <= 10
+    assert dashboard["review_count"] <= 5
+    # ...without losing anything: the findings are all still there underneath.
+    assert dashboard["critical_detail_count"] > dashboard["critical_count"]
+    assert any(issue["details"] for issue in challenging["issues"]
+               if issue["severity"] == "CRITICAL")
+
+
+# --- it is perfect whichever month it is downloaded in ----------------------------------
+
+def _built_as_of(today):
+    """The balanced workbook as it would be downloaded on ``today``.
+
+    The example plans for the month after the download, and its leave dates and
+    competency expiries move with it, so each month is a genuinely different roster.
+    """
+    import datetime
+    import labroster.template as template
+
+    class FakeDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return today
+
+    template.date = FakeDate
+    try:
+        return api.balanced_workbook_bytes()
+    finally:
+        template.date = datetime.date
+
+
+@pytest.mark.parametrize("downloaded", [
+    "2027-01-15",     # plans February: 28 days
+    "2027-03-15",     # plans April: 30 days
+    "2027-06-15",     # plans July: 31 days
+    "2026-12-15",     # plans January: the year changes
+])
+def test_the_balanced_example_is_perfect_in_any_month(downloaded):
+    import datetime
+    data = _built_as_of(datetime.date.fromisoformat(downloaded))
+    result = api.generate(data)
+    assert result["ok"], result.get("fatal")
+    dashboard = result["dashboard"]
+    assert dashboard["critical_count"] == 0, result["details"]["period_label"]
+    assert dashboard["review_count"] == 0, result["details"]["period_label"]
+    assert dashboard["shifts_meeting_all_requirements_percent"] == 100.0
+    assert dashboard["staff_outside_target_hours"] == 0
+    assert dashboard["weekend_fairness"] == "Good"
+    assert dashboard["night_fairness"] == "Good"
