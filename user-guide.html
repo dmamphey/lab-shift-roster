@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Free Laboratory Roster Tool User Guide | Lab Shift Roster</title>
-<meta name="description" content="Step-by-step guide to the Lab Shift Roster free laboratory roster tool: fill in the workbook, generate a draft roster, review issues, adjust and export.">
+<meta name="description" content="Lab Shift Roster is a secure and intelligent workforce planning tool for diagnostic laboratories. Step-by-step guide: fill in the workbook, generate a draft roster, review issues, adjust and export.">
 <link rel="canonical" href="https://labshiftroster.com/app/user-guide">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Lab Shift Roster">
 <meta property="og:locale" content="en_GB">
 <meta property="og:title" content="Free Laboratory Roster Tool User Guide | Lab Shift Roster">
-<meta property="og:description" content="Step-by-step guide to the Lab Shift Roster free laboratory roster tool: fill in the workbook, generate a draft roster, review issues, adjust and export.">
+<meta property="og:description" content="Lab Shift Roster is a secure and intelligent workforce planning tool for diagnostic laboratories. Step-by-step guide: fill in the workbook, generate a draft roster, review issues, adjust and export.">
 <meta property="og:url" content="https://labshiftroster.com/app/user-guide">
 <meta property="og:image" content="https://labshiftroster.com/assets/brand/og-image.png">
 <meta property="og:image:secure_url" content="https://labshiftroster.com/assets/brand/og-image.png">
@@ -21,7 +21,7 @@
 <meta property="og:image:alt" content="Lab Shift Roster laboratory workforce planning software">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Free Laboratory Roster Tool User Guide | Lab Shift Roster">
-<meta name="twitter:description" content="Step-by-step guide to the Lab Shift Roster free laboratory roster tool: fill in the workbook, generate a draft roster, review issues, adjust and export.">
+<meta name="twitter:description" content="Lab Shift Roster is a secure and intelligent workforce planning tool for diagnostic laboratories. Step-by-step guide: fill in the workbook, generate a draft roster, review issues, adjust and export.">
 <meta name="twitter:image" content="https://labshiftroster.com/assets/brand/og-image.png">
 <meta name="twitter:image:alt" content="Lab Shift Roster laboratory workforce planning software">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -333,8 +333,8 @@
 
 <header class="hero">
   <h1>Lab Shift Roster — user guide</h1>
-  <p>Free, secure workforce planning for diagnostic laboratories. Rules-based, and always a
-     draft for your review.</p>
+  <p>A secure and intelligent workforce planning tool for diagnostic laboratories.
+     Always a draft for your review.</p>
   <p>This guide covers everything from filling in the workbook to exporting a
      finished rota. Version 1.1 Beta.</p>
   <a class="back" href="./">&larr; Back to Lab Shift Roster</a>
@@ -468,15 +468,15 @@
     <thead><tr><th>Download</th><th>Contains</th><th>Use it when</th></tr></thead>
     <tbody>
       <tr><td><strong>Blank workbook</strong></td>
-          <td>All the headings, guidance and dropdown lists. No staff, no
-              competencies, no leave. Shifts, requirements and sections carry a
-              common starting configuration you can adjust — set a shift's
-              <em>Active</em> column to <code>N</code> for any your laboratory
-              does not run.</td>
+          <td>All the headings, guidance and dropdown lists, and nothing else: no
+              staff, competencies or leave, and no shifts, requirements, benches or
+              absence types either. Only the roster dates and your usual Rules
+              settings are filled in, so check them.</td>
           <td>You are setting up your own laboratory</td></tr>
       <tr><td><strong>Balanced example</strong></td>
-          <td>A well-staffed fictional department of fourteen. Produces full
-              coverage with no critical issues.</td>
+          <td>A well-staffed fictional department of twenty-one, running eight
+              benches. Produces full coverage with nothing to review: no critical
+              items, no review items, only passed checks.</td>
           <td>You want to see what a healthy result looks like</td></tr>
       <tr><td><strong>Challenging example</strong></td>
           <td>A fictional department with deliberate gaps: thin morphology cover,
@@ -689,17 +689,22 @@
 <!-- ================================================================= -->
 <section class="card" id="competencies">
   <h2>9. Competencies</h2>
-  <p>One row per person per discipline. This is what lets the tool answer whether a
-     section can actually be staffed.</p>
+  <p>One row per person per bench (a bench is also called a discipline: the two
+     words mean the same thing). This is what lets the tool answer whether a bench
+     can actually be staffed.</p>
   <div class="scroll"><table>
     <thead><tr><th>Column</th><th>Notes</th></tr></thead>
     <tbody>
       <tr><td><strong>Staff ID</strong></td><td>Must match the Staff sheet</td></tr>
       <tr><td>Name</td><td>For your readability; the ID is what is used</td></tr>
-      <tr><td><strong>Discipline</strong></td>
-          <td>Short code: <code>BT</code>, <code>HAEM</code>, <code>COAG</code>,
-              <code>MORPH</code>. Whatever codes you use must match the Benches and
-              Requirements sheets</td></tr>
+      <tr><td><strong>Bench or Discipline</strong></td>
+          <td>The bench, written as on the Benches sheet: either its short
+              <strong>Bench</strong> name (<code>GRP</code>, <code>FBC</code>,
+              <code>COAG</code>, <code>MORPH</code>) or its full
+              <strong>Discipline</strong> name (<em>Grouping</em>, <em>Full Blood
+              Count</em>). Either works, and they are treated as the same. An older
+              workbook whose column is headed <em>Discipline</em> still reads
+              correctly</td></tr>
       <tr><td>Competency</td><td>The name of the specific competency, such as
           <em>Crossmatch and electronic issue</em></td></tr>
       <tr><td><strong>Status</strong></td><td>See the table below</td></tr>
@@ -791,9 +796,11 @@
      finishes at the same time is rejected as a data-entry error.</p>
 
   <h3>Shifts your laboratory does not run</h3>
-  <p>Those five are a starting point, not a prescription. Plenty of laboratories
-     have no early shift, or run a twilight instead of a late, or work weekends
-     on the same pattern as weekdays.</p>
+  <p>The blank workbook has no shifts: add one row for each shift your laboratory
+     runs. The five above are what the example laboratories use, a starting point
+     rather than a prescription. Plenty of laboratories have no early shift, or run
+     a twilight instead of a late, or work weekends on the same pattern as
+     weekdays.</p>
   <p><strong>Set Active to <code>N</code></strong> for any shift you do not run.
      An inactive shift is never rostered, and any requirement or bench that
      mentions it is quietly ignored for as long as it is switched off — so you
@@ -835,10 +842,10 @@
       <tr><td>Min Trainers</td><td>How many trainers or supervisors</td></tr>
       <tr><td>Max Trainees</td><td>Cap on trainees. Blank or 0 means no cap</td></tr>
       <tr><td><strong>Required Competencies</strong></td>
-          <td>Discipline and number, comma separated:
-              <code>BT:1, HAEM:2, COAG:1</code></td></tr>
+          <td>Bench (or discipline) and number, comma separated:
+              <code>GRP:1, FBC:2, COAG:1</code></td></tr>
       <tr><td>Required Authorisers</td><td>Same format:
-          <code>BT:1</code></td></tr>
+          <code>XMTCH:1</code></td></tr>
     </tbody>
   </table></div>
   <h3>How competency requirements are counted</h3>
@@ -862,14 +869,18 @@
 <!-- ================================================================= -->
 <section class="card" id="benches">
   <h2>12. Benches</h2>
-  <p>The laboratory sections that need somebody actually standing at them.</p>
+  <p>The laboratory benches that need somebody actually standing at them.
+     <strong>Bench</strong> and <strong>Discipline</strong> are interchangeable terms
+     for the same thing, shown side by side on this sheet: Bench is the short name
+     used on the rota, Discipline is its full name.</p>
   <div class="scroll"><table>
     <thead><tr><th>Column</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Bench</td><td>The section name in words, such as
-          <em>Blood Transfusion</em>. This is what appears in issue headlines</td></tr>
-      <tr><td>Discipline</td><td>The competency code it needs, such as
-          <code>BT</code></td></tr>
+      <tr><td>Bench</td><td>The short name used on the rota and in issue headlines,
+          such as <code>GRP</code> or <code>HB'THY</code></td></tr>
+      <tr><td>Discipline</td><td>The full name of the same bench, such as
+          <em>Grouping</em> or <em>Haemoglobinopathy</em>. Competencies and
+          requirements may use either name</td></tr>
       <tr><td>Days</td><td><code>All</code>, <code>Weekday</code> or
           <code>Weekend</code></td></tr>
       <tr><td>Min Staff</td><td>How many people during the week</td></tr>
@@ -1004,7 +1015,7 @@
     <thead><tr><th>Tile</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr><td>Unfilled shifts</td><td>Shifts below their minimum headcount</td></tr>
-      <tr><td>Uncovered sections</td><td>Section slots with nobody competent
+      <tr><td>Uncovered benches</td><td>Bench slots with nobody competent
           allocated</td></tr>
       <tr><td>Senior cover gaps</td><td>Shifts requiring a senior with none</td></tr>
       <tr><td>Competency gaps</td><td>Missing competencies or authorisers</td></tr>
@@ -1013,7 +1024,7 @@
       <tr><td>Outside target hours</td><td>People beyond your hours tolerance</td></tr>
       <tr><td>Competencies expiring / expired</td><td>Against your warning
           thresholds</td></tr>
-      <tr><td>Single points of failure</td><td>Disciplines with only one
+      <tr><td>Single points of failure</td><td>Benches with only one
           independently competent member of staff</td></tr>
       <tr><td>Weekend / night fairness</td><td><em>Good</em>, <em>Review</em> or
           <em>Uneven</em></td></tr>
@@ -1060,12 +1071,22 @@
   </div>
   <p>Related warnings with the same underlying cause are combined. A missing
      morphology scientist produces one issue, not two — one for the competency and
-     another for the section that consequently could not be staffed.</p>
+     another for the bench that consequently could not be staffed.</p>
+  <h3>A short list, not a long one</h3>
+  <p>A roster should leave you with a handful of things to act on, not a wall of
+     red. So findings of one kind are gathered into <strong>one item per
+     cause</strong>: "No senior member of staff on 31 shifts", not thirty-one
+     separate lines. Each item says how many shifts or people it covers and over
+     what dates, and <strong>Show what is behind this</strong> lists every one
+     beneath it. Nothing is hidden; the manager report lists them all too. The
+     counts in the Critical, Review and Passed tabs count items, not findings, and
+     the <em>Main causes</em> panel shows how many findings each cause stands
+     for.</p>
 </section>
 
 <!-- ================================================================= -->
 <section class="card" id="preview">
-  <h2>17. Roster preview and section coverage</h2>
+  <h2>17. Roster preview and bench coverage</h2>
   <p>Staff down the side, dates across the top, shift codes in the cells, coloured
      as you configured them. The name column stays put while you scroll sideways.</p>
   <p>This on-screen preview names people in full. The <em>exported</em> rota adds
@@ -1079,7 +1100,7 @@
     <li>A cell marked <code>*</code> was adjusted by hand</li>
     <li>A blank cell means not scheduled</li>
   </ul>
-  <p>The <strong>Section coverage</strong> panel below lists each date and shift
+  <p>The <strong>Bench coverage</strong> panel below lists each date and shift
      with the section, how many people were required and allocated, a status of
      <em>Covered</em>, <em>Review</em> or <em>Not covered</em>, and who is on it.
      Filter by date or section.</p>
@@ -1119,12 +1140,16 @@
      <span class="pill critical">Critical</span>, two is
      <span class="pill review">Review</span>, three or more is
      <span class="pill passed">Passed</span>. Shift-level thinness is reported once
-     per shift and discipline with a count of affected dates, rather than once per
-     day — a thinly covered section is one problem to think about, not thirty.</p>
+     per shift and bench with a count of affected dates, rather than once per
+     day — a thinly covered bench is one problem to think about, not thirty. It is
+     reported only where a shift has two or more people (a lone worker is a choice
+     you made) and nobody else rostered that day could stand in for the one
+     competent person.</p>
   <p><strong>Section rotation</strong> is also tracked: if somebody competent in a
-     discipline was not allocated to it during the period, that is flagged against
-     your configured interval. No rotation rule is invented; the report simply says
-     how long it has been.</p>
+     bench was not allocated to it, that is flagged against your configured
+     interval. It is judged only when the roster is at least as long as that
+     interval, because a shorter roster cannot show a breach of it. No rotation rule
+     is invented; the report simply says how long it has been.</p>
 </section>
 
 <!-- ================================================================= -->
@@ -1201,7 +1226,7 @@
       <tr><td>Competencies</td><td>The register, with what counts as cover</td></tr>
       <tr><td>Shift Requirements</td><td>What each shift was required to
           provide</td></tr>
-      <tr><td>Bench Allocations</td><td>Section cover day by day, with status</td></tr>
+      <tr><td>Bench Allocations</td><td>Bench cover day by day, with status</td></tr>
       <tr><td>Issues</td><td>Everything to review, by severity</td></tr>
       <tr><td>Hours Summary</td><td>Target, worked, credited, accounted,
           variance</td></tr>
@@ -1285,8 +1310,8 @@
           <td>Add a row saying how many people it needs, or no staff will be
               rostered onto it</td></tr>
       <tr><td>Nobody holds a '…' competency</td>
-          <td>A section can never be covered. Check the discipline code matches the
-              Competencies sheet</td></tr>
+          <td>A bench can never be covered. Check the bench or discipline written on
+              the Competencies sheet matches the Benches sheet</td></tr>
       <tr><td>Could not write … the file is open in another program</td>
           <td>Close it in Excel and try again</td></tr>
     </tbody>
@@ -1297,8 +1322,8 @@
         availability, night and weekend eligibility, and any personal caps</li>
     <li><strong>Nobody is rostered at weekends.</strong> Their availability pattern
         probably excludes Saturday and Sunday</li>
-    <li><strong>A section is never covered.</strong> Check the discipline code
-        matches, that somebody is <em>Competent</em> rather than
+    <li><strong>A bench is never covered.</strong> Check the bench or discipline
+        written on the Competencies sheet matches, that somebody is <em>Competent</em> rather than
         <em>In Training</em>, that the competency has not expired, and whether the
         section requires an authoriser</li>
     <li><strong>Everybody is over or under target hours.</strong> Your total shift

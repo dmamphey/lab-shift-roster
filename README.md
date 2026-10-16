@@ -1,6 +1,6 @@
 # Lab Shift Roster
 
-**A free, secure and intelligent workforce planning tool for diagnostic laboratories.**
+**A secure and intelligent workforce planning tool for diagnostic laboratories.**
 
 Import your workforce information, define your shift and competency
 requirements, and Lab Shift Roster creates a draft rota while identifying staffing,
@@ -56,7 +56,7 @@ competent to work in them.
 
 Open the application, then:
 
-1. Download a workbook — blank, or the example laboratory
+1. Download a workbook — blank (every sheet empty), or an example laboratory
 2. Add your workforce and requirements
 3. Upload the workbook
 4. Generate a draft roster
@@ -204,10 +204,12 @@ discard manual adjustments.
 
 ## Two demonstration laboratories
 
-**Balanced example** — a well-staffed fictional department: 100% staffing slot
-coverage, 100% of shifts meeting every configured requirement, no critical items,
-no rest conflicts and no single points of failure. This is what a healthy result
-looks like.
+**Balanced example** — a well-staffed fictional department of twenty-one, running
+eight benches (GRP, XMTCH, SPECS, FBC, COAG, MORPH, FLOW, HB'THY): 100% staffing
+slot coverage, 100% of shifts meeting every configured requirement, **no critical
+items and no review items, only passed checks**, hours within a few per cent of
+contract for everyone, and nights and weekends shared fairly. This is what a
+healthy result looks like.
 
 **Challenging example** — deliberately contains staffing, competency, leave and
 availability constraints so you can see what Lab Shift Roster detects. It is labelled as
@@ -235,26 +237,29 @@ individually or all at once.
 | **Rules** | Rest interval, consecutive limits, tolerances, warning thresholds |
 | **Staff** | One row per person: grade, role, hours, FTE, working pattern, eligibility |
 | **Week Patterns** | Only for staff on alternating weeks |
-| **Competencies** | One row per person per discipline |
+| **Competencies** | One row per person per bench (a bench is also called a discipline) |
 | **Shifts** | Shift codes with real start and finish times |
 | **Shift Requirements** | Minimum staffing and competencies per shift |
-| **Benches** | Laboratory sections, the competency each needs, and when |
+| **Benches** | Laboratory benches (also called disciplines), the competency each needs, and when |
 | **Leave** | Absence, inclusive of both dates |
 | **Leave Types** | Absence codes and colours |
 
 Notes:
 
 - **Staff ID** must be unique; the other sheets refer to it
-- **Required Competencies** is written as discipline and number:
-  `BT:1, HAEM:2, COAG:1`
-- Disciplines are referred to by their **short code** — `BT`, `HAEM`, `COAG`,
-  `MORPH` — throughout the workbook, the interface, the issues and the exports,
-  because that is the everyday shorthand in a diagnostic laboratory. Section
-  names stay in words, so an issue reads "Morphology cannot be covered" while the
-  requirement behind it reads "1 independently competent MORPH scientist".
+- **Required Competencies** is written as bench (or discipline) and number:
+  `GRP:1, FBC:2, COAG:1`
+- **Bench and Discipline are two names for the same thing**: a section of the
+  laboratory. On the Benches sheet they sit side by side, Bench being the short name
+  used on the rota (`GRP`) and Discipline its full name (`Grouping`). Everywhere else
+  either may be written, and the tool treats them as the same; the rota, the issues
+  and the exports use the short Bench name, because that is the everyday shorthand in
+  a diagnostic laboratory. An issue reads "GRP cannot be covered" and the requirement
+  behind it "1 independently competent GRP scientist". A workbook that uses one word
+  for both works exactly as before.
 - The **Mon–Sun** columns on the Staff sheet are the days somebody normally
   works; leave all seven blank for a fully flexible member of staff
-- **Shift Codes** on the Benches sheet says which shifts a section must be
+- **Shift Codes** on the Benches sheet says which shifts a bench must be
   staffed during
 - Headers are matched loosely, so capitalisation, spacing and column order do
   not matter

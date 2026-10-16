@@ -1,5 +1,61 @@
 # Changelog
 
+## 3.2.0-beta — A short list of things to act on
+
+### A blank workbook that is blank
+The blank workbook now carries nothing from the examples: Shifts, Shift Requirements,
+Benches and Leave Types are empty like Staff, Competencies, Week Patterns and Leave, and
+Roster Details no longer names a rota, department or organisation. Only the roster dates and
+the usual Rules settings are filled in. An empty Leave Types sheet falls back on the standard
+five absence types, and the Leave sheet's dropdown follows whatever the Leave Types sheet holds.
+Uploading a workbook with no shifts says so plainly.
+
+### Bench or discipline: one thing, two names
+A bench and a discipline are the same thing. A competency or a requirement may now name it
+either way (`GRP` or `Grouping`), the Competencies column may be headed *Bench*, *Discipline* or
+*Bench or Discipline*, and a workbook that uses one word for both is unaffected. The rota, the
+issues and the exports show the short bench name. The example workbooks now run eight benches:
+GRP (Grouping), XMTCH (Crossmatch), SPECS (Specials Coagulation), FBC (Full Blood Count), COAG
+(Coagulation), MORPH (Morphology), FLOW (Flow Cytometry) and HB'THY (Haemoglobinopathy).
+
+### The balanced example is balanced
+Twenty-one staff now run the eight benches, and a draft comes out with **no critical items, no
+review items and only passed checks**, with hours between 96% and 104% of contract and nights and
+weekends shared fairly, whichever month the workbook is downloaded in. It is perfect with the
+default roster number in every month tested, and with 42 of 48 month-and-alternative combinations
+tried; it never produces a critical item, and the exceptions are a single review item or the
+weekend-fairness tile reading *Review*.
+
+### A short list, not a wall of red
+Related findings are gathered into **one item per cause**, with the individual findings beneath it
+(*Show what is behind this*) and in the exported manager report. The challenging example went from
+70 critical and 23 review items to 7 and 3, and every one is still there underneath. Two advisory
+checks also stopped saying more than they knew:
+
+- **Section rotation** is judged only when the roster is at least as long as the rotation interval
+  (a 31-day roster cannot show a breach of a 56-day rotation).
+- **Single competent person on a shift** is flagged only when the shift has two or more people and
+  nobody else rostered that day could stand in. A lone worker is a choice the manager made.
+
+### A scheduler that does not leave a day half done
+- Benches are chosen and allocated by matching, so a full assignment is found whenever the people
+  available allow one (previously one bench could be left empty because another took the only
+  person it could have had).
+- A same-day repair: when a shift still lacks something, a qualified person on another shift is
+  moved if that shift still stands or can be backfilled, and everything is put back otherwise.
+- People are ranked by the share of their own contract still owed, not the absolute hours, so
+  part-timers and full-timers converge on the same percentage.
+- A balancing pass evens out weekends and then hours, accepting a move only if it breaks no rule,
+  leaves cover no worse and makes the two people closer. A manager's own placements and nights are
+  never moved.
+
+### Seeing it
+**Draft roster ready — please review the issues** is now large, bold and bright (amber, or green
+when there is nothing to review), with the counts beneath it and a short pulse (none for people who
+prefer reduced motion). Exports made on a paid plan no longer call the tool free; the page asks the
+product site only for the plan's name. The tagline is now *A secure and intelligent workforce
+planning tool for diagnostic laboratories.*
+
 ## 3.1.0-beta — Working patterns and initials
 
 ### Shifts a laboratory does not run
