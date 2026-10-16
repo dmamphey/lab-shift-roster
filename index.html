@@ -391,6 +391,8 @@
     if (!m) return;
     var ref = m[1].toUpperCase();
     var PAGES = ["/", "/pricing", "/contact", "/signup", "/login", "/app/", "/app/user-guide", "/account/billing"];
+    // Run once the whole page is parsed: this script sits near the top, so a plain call would miss the footer links.
+    function carry() {
     document.querySelectorAll("a[href]").forEach(function (a) {
       var h = a.getAttribute("href");
       if (!h || h.charAt(0) === "#") return;
@@ -401,6 +403,8 @@
       u.searchParams.set("ref", ref);
       a.setAttribute("href", h.charAt(0) === "/" ? u.pathname + u.search + u.hash : u.href);
     });
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", carry); else carry();
   })();
 </script>
 
