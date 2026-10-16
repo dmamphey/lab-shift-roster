@@ -20,11 +20,11 @@ GRP (Grouping), XMTCH (Crossmatch), SPECS (Specials Coagulation), FBC (Full Bloo
 
 ### The balanced example is balanced
 Twenty-one staff now run the eight benches, and a draft comes out with **no critical items, no
-review items and only passed checks**, with hours between 96% and 104% of contract and nights and
-weekends shared fairly, whichever month the workbook is downloaded in. It is perfect with the
-default roster number in every month tested, and with 42 of 48 month-and-alternative combinations
-tried; it never produces a critical item, and the exceptions are a single review item or the
-weekend-fairness tile reading *Review*.
+review items and only passed checks**, with hours close to contract for everyone and nights and
+weekends shared fairly, whichever month the workbook is downloaded in. Tested by downloading it
+as if in each of twelve months and generating with the default roster number and fifteen others:
+82 of 84 combinations were perfect, none produced a critical or review item, and the other two
+(a five-weekend month) differ only in the weekend-fairness tile reading *Review*.
 
 ### A short list, not a wall of red
 Related findings are gathered into **one item per cause**, with the individual findings beneath it
